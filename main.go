@@ -19,7 +19,7 @@ import (
 
 func main() {
 	fName := "/tmp/cigardsdb_nobelgo.json"
-	f, err := os.OpenFile(fName, os.O_CREATE|os.O_TRUNC, 0664)
+	f, err := os.OpenFile(fName, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0660)
 	if err != nil {
 		log.Printf("could not open file: %v", err)
 		return
@@ -36,7 +36,7 @@ func main() {
 	}
 
 	if err = json.NewEncoder(f).Encode(data); err != nil {
-		log.Printf("could write data to %s: %v", fName, err)
+		log.Printf("could not write data to %s: %v", fName, err)
 	}
 }
 
@@ -45,56 +45,61 @@ type httpClient interface {
 }
 
 type Record struct {
-	Name               string   `json:"name"`               //+
-	URL                string   `json:"url"`                //+
-	Brand              string   `json:"brand"`              //+
-	Series             string   `json:"series"`             //+
-	ManufactureCountry string   `json:"manufactureCountry"` //+
-	Format             string   `json:"format"`             //+
-	Form               string   `json:"form"`               //+
-	Maker              string   `json:"maker"`              //+
-	Construction       string   `json:"construction"`       //+
+	Name               string   `json:"name"`
+	URL                string   `json:"url"`
+	Brand              string   `json:"brand"`
+	Series             string   `json:"series"`
+	ManufactureCountry string   `json:"manufactureCountry"`
+	Format             string   `json:"format"`
+	Form               string   `json:"form"`
+	Maker              string   `json:"maker"`
+	Construction       string   `json:"construction"`
 	WrapperType        string   `json:"wrapperType"`
-	Strength           string   `json:"strength"`        //+
-	FlavourStrength    string   `json:"flavourStrength"` //+
-	SmokingDuration    string   `json:"smokingDuration"` //+
-	Special            string   `json:"special"`         //+
-	WrapperOrigin      []string `json:"wrapperOrigin"`   //+
-	FillerOrigin       []string `json:"fillerOrigin"`    //+
-	BinderOrigin       []string `json:"binderOrigin"`    //+
-	Aroma              []string `json:"aroma"`           //+
-	Price              float64  `json:"price"`           //+
+	Strength           string   `json:"strength"`
+	FlavourStrength    string   `json:"flavourStrength"`
+	SmokingDuration    string   `json:"smokingDuration"`
+	Special            string   `json:"special"`
+	WrapperOrigin      []string `json:"wrapperOrigin"`
+	FillerOrigin       []string `json:"fillerOrigin"`
+	BinderOrigin       []string `json:"binderOrigin"`
+	Aroma              []string `json:"aroma"`
+	Price              float64  `json:"price"`
 	Diameter           float64  `json:"diameter_mm"`
-	Gauge              int      `json:"gauge"` //+
+	Gauge              int      `json:"gauge"`
 	Length             int      `json:"length_mm"`
-	LimitedEdition     bool     `json:"limitedEdition"` //+
-	include            bool     //+
+	LimitedEdition     bool     `json:"limitedEdition"`
+	include            bool
 }
 
 func ExtractNobelgo(c httpClient) (o []Record, err error, warn error) {
 	page := 1
-	for page < 2 {
+	maxPage := 2
+	for page < maxPage {
 		log.Printf("fetch data from page %d\n", page)
 
-		baseURL := fmt.Sprintf("https://www.noblego.de/zigarren/?in_stock=1&limit=96&p=%d", page)
+		baseURL := fmt.Sprintf("https://www.noblego.de/zigarren/?in_stock=1&limit=10&p=%d", page)
 		var (
-			er   error
-			resp *http.Response
+			er    error
+			resp  *http.Response
+			found bool
 		)
 		if resp, er = c.Get(baseURL); er == nil {
-			v, found, er, warnInner := readPage(resp.Body, c)
-			if er == nil {
-				_ = resp.Body.Close()
-				if found {
-					o = append(o, v...)
-				} else {
-					break
-				}
-			}
+			var (
+				warnInner error
+				v         []Record
+			)
+			v, found, er, warnInner = readPage(resp.Body, c)
+			_ = resp.Body.Close()
 			warn = errors.Join(warn, warnInner)
+			if er == nil {
+				o = append(o, v...)
+			}
 		}
 		if er != nil {
 			err = errors.Join(err, fmt.Errorf("error reading page %d: %w", page, er))
+		}
+		if !found {
+			break
 		}
 		page++
 	}
@@ -103,11 +108,7 @@ func ExtractNobelgo(c httpClient) (o []Record, err error, warn error) {
 
 func readPage(v io.Reader, c httpClient) (o []Record, found bool, err error, warn error) {
 	o, err, warn = readList(v)
-	var flag = make(chan struct{}, len(o))
-	for range o {
-		flag <- struct{}{}
-	}
-	var mu = new(sync.Mutex)
+	var flags = make(chan struct{}, len(o))
 	for i, el := range o {
 		i := i
 		el := el
@@ -117,18 +118,23 @@ func readPage(v io.Reader, c httpClient) (o []Record, found bool, err error, war
 				resp *http.Response
 			)
 			if resp, er = c.Get(el.URL); er == nil {
+				log.Printf("fetch details for item %d from %s\n", i, el.URL)
 				if er = readDetails(resp.Body, &el); er == nil {
 					o[i] = el
 				}
 				_ = resp.Body.Close()
 			}
 			if er != nil {
-				mu.Lock()
 				err = errors.Join(err, fmt.Errorf("error reading details using %s: %w", el.URL, er))
-				mu.Unlock()
 			}
-			<-flag
+			flags <- struct{}{}
+			log.Printf("fetch details for item %d from %s\n: close", i, el.URL)
 		}()
+	}
+	maxN := len(o)
+	for maxN > 0 {
+		<-flags
+		maxN--
 	}
 	return o, len(o) > 0, err, warn
 }
@@ -141,6 +147,7 @@ func readList(v io.Reader) (o []Record, err error, warn error) {
 	)
 	if doc, er := html.Parse(v); er == nil {
 		n := htmlfilter.Node{Node: doc}
+
 		for n = range n.Find("div.category-products") {
 			for nn := range n.Find("li.item") {
 				log.Printf("fetching data for the item %d\n", cnt)
@@ -368,9 +375,10 @@ func readDetails(v io.Reader, o *Record) (err error) {
 						case specialVal != "":
 							o.Special = specialVal
 						}
-
 					case "product-attribute-cig_construction":
 						o.Construction = dataFromATagText(val)
+					case "product-attribute-cig_form":
+						o.Form = dataFromFirstSpanChild(val)
 					}
 				}
 			}
