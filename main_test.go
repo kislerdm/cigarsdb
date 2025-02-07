@@ -233,3 +233,12 @@ func Test_readDetails(t *testing.T) {
 		assert.Equal(t, want, got)
 	})
 }
+
+//go:embed list-amount.html
+var listAmount []byte
+
+func Test_readMaxPageValue(t *testing.T) {
+	got, err := foundTotalItems(bytes.NewReader(listAmount))
+	assert.NoError(t, err)
+	assert.Equal(t, 2688, got)
+}

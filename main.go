@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"strconv"
@@ -72,18 +73,27 @@ type Record struct {
 }
 
 func ExtractNobelgo(c httpClient) (o []Record, err error, warn error) {
-	page := 1
-	maxPage := 2
+	const baseURL = "https://www.noblego.de/zigarren/?in_stock=1&limit=%d"
+	const itemsPerPage = 96
+	u := fmt.Sprintf(baseURL, itemsPerPage)
+
+	var page = 1
+	maxPage := page
+	var resp *http.Response
+	if resp, err = c.Get(u); err == nil {
+		defer func() { _ = resp.Body.Close() }()
+		var total int
+		total, err = foundTotalItems(resp.Body)
+		maxPage = int(math.Ceil(float64(total) / itemsPerPage))
+	}
+
 	for page < maxPage {
 		log.Printf("fetch data from page %d\n", page)
-
-		baseURL := fmt.Sprintf("https://www.noblego.de/zigarren/?in_stock=1&limit=10&p=%d", page)
 		var (
 			er    error
-			resp  *http.Response
 			found bool
 		)
-		if resp, er = c.Get(baseURL); er == nil {
+		if resp, er = c.Get(fmt.Sprintf("%s&p=%d", u, page)); er == nil {
 			var (
 				warnInner error
 				v         []Record
@@ -104,6 +114,19 @@ func ExtractNobelgo(c httpClient) (o []Record, err error, warn error) {
 		page++
 	}
 	return o, err, warn
+}
+
+func foundTotalItems(v io.Reader) (o int, err error) {
+	var n *html.Node
+	if n, err = html.Parse(v); err == nil {
+		nn := htmlfilter.Node{Node: n}
+		for nn = range nn.Find("p.amount") {
+			s := strings.TrimSpace(strings.Split(nn.LastChild.Data, " ")[0])
+			o, err = strconv.Atoi(s)
+			break
+		}
+	}
+	return o, err
 }
 
 func readPage(v io.Reader, c httpClient) (o []Record, found bool, err error, warn error) {
