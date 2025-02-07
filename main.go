@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cigarsdb/htmlfilter"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -44,29 +45,30 @@ type httpClient interface {
 }
 
 type Record struct {
-	Name            string   `json:"name"`
-	URL             string   `json:"url"`
-	Brand           string   `json:"brand"`
-	Collection      string   `json:"collection"`
-	OriginCountry   string   `json:"manufacturerCountry"`
-	Format          string   `json:"format"`
-	Form            string   `json:"form"`
-	Blender         string   `json:"blender"`
-	FillingType     string   `json:"fillingType"`
-	WrapperType     string   `json:"wrapperType"`
-	WrapperCountry  []string `json:"wrapperCountry"`
-	FillerCountry   []string `json:"fillingCountry"`
-	BinderCountry   []string `json:"binderCountry"`
-	Strength        string   `json:"strength"`
-	Price           float64  `json:"price"`
-	Diameter        float64  `json:"diameter_mm"`
-	Gauge           int      `json:"gauge"`
-	Length          int      `json:"length_mm"`
-	Aroma           string   `json:"aroma"`
-	Aromas          []string `json:"aromas"`
-	SmokingDuration string   `json:"smokingDuration"`
-	LimitedEdition  bool     `json:"limitedEdition"`
-	include         bool
+	Name               string   `json:"name"`               //+
+	URL                string   `json:"url"`                //+
+	Brand              string   `json:"brand"`              //+
+	Series             string   `json:"series"`             //+
+	ManufactureCountry string   `json:"manufactureCountry"` //+
+	Format             string   `json:"format"`             //+
+	Form               string   `json:"form"`               //+
+	Maker              string   `json:"maker"`              //+
+	Construction       string   `json:"construction"`       //+
+	WrapperType        string   `json:"wrapperType"`
+	Strength           string   `json:"strength"`        //+
+	FlavourStrength    string   `json:"flavourStrength"` //+
+	SmokingDuration    string   `json:"smokingDuration"` //+
+	Special            string   `json:"special"`         //+
+	WrapperOrigin      []string `json:"wrapperOrigin"`   //+
+	FillerOrigin       []string `json:"fillerOrigin"`    //+
+	BinderOrigin       []string `json:"binderOrigin"`    //+
+	Aroma              []string `json:"aroma"`           //+
+	Price              float64  `json:"price"`           //+
+	Diameter           float64  `json:"diameter_mm"`
+	Gauge              int      `json:"gauge"` //+
+	Length             int      `json:"length_mm"`
+	LimitedEdition     bool     `json:"limitedEdition"` //+
+	include            bool     //+
 }
 
 func ExtractNobelgo(c httpClient) (o []Record, err error, warn error) {
@@ -138,34 +140,30 @@ func readList(v io.Reader) (o []Record, err error, warn error) {
 		wg  = new(sync.WaitGroup)
 	)
 	if doc, er := html.Parse(v); er == nil {
-		for nn := range doc.Descendants() {
-			if nn.Type == html.ElementNode && nn.DataAtom == atom.Li {
-				for _, attr := range nn.Attr {
-					if attr.Key == "class" && attr.Val == "item" {
-						log.Printf("fetching data for the item %d\n", cnt)
+		n := htmlfilter.Node{Node: doc}
+		for n = range n.Find("div.category-products") {
+			for nn := range n.Find("li.item") {
+				log.Printf("fetching data for the item %d\n", cnt)
+				wg.Add(1)
+				go func(wg *sync.WaitGroup, n *html.Node) {
+					defer wg.Done()
+					defer mu.Unlock()
 
-						go func(wg *sync.WaitGroup) {
-							wg.Add(1)
-							defer wg.Done()
-							r, er := readListElement(nn)
-							mu.Lock()
-							defer mu.Unlock()
-							if er == nil {
-								o = append(o, r)
-							} else {
-								warn = errors.Join(warn, fmt.Errorf("item %d: %w", cnt, er))
-							}
-						}(wg)
+					r, er := readListElement(n)
 
-						cnt++
+					mu.Lock()
+					if er == nil {
+						o = append(o, r)
+					} else {
+						warn = errors.Join(warn, fmt.Errorf("item %d: %w", cnt, er))
 					}
-				}
+				}(wg, nn.Node)
+				cnt++
 			}
 		}
 	} else {
 		err = fmt.Errorf("could not parse the list page: %w", er)
 	}
-
 	wg.Wait()
 	return o, err, warn
 }
@@ -250,68 +248,33 @@ func readListProductPrice(n *html.Node, r *Record) {
 }
 
 func readListProductDetails(n *html.Node, r *Record) {
-	spanReader := func(n *html.Node, fn func(n *html.Node) string) (o string) {
-		for c := range n.ChildNodes() {
-			for _, att := range c.Attr {
-				if att.Key == "class" && att.Val == "data" {
-					o = fn(c)
-					break
-				}
-			}
-		}
-		return o
-	}
-
-	dataFromFirstSpanChild := func(n *html.Node) string {
-		return spanReader(n, func(n *html.Node) string { return n.FirstChild.Data })
-	}
-	dataFromATagText := func(n *html.Node) string {
-		return spanReader(n, func(n *html.Node) string {
-			for nnn := range n.Descendants() {
-				if nnn.DataAtom == atom.A {
-					return nnn.LastChild.Data
-				}
-			}
-			return ""
-		})
-	}
-
 	for nn := range n.Descendants() {
 		if nn.DataAtom == atom.Li {
 			for _, att := range nn.Attr {
 				if att.Key == "class" {
 					switch att.Val {
 					case "product-attribute-herkunft":
-						r.OriginCountry = dataFromATagText(nn)
+						r.ManufactureCountry = dataFromATagText(nn)
 
 					case "product-attribute-cig_size":
 						r.Format = dataFromATagText(nn)
 
 					case "product-attribute-cig_wrapper_origin":
-						r.WrapperCountry = parseConcatSlice(dataFromFirstSpanChild(nn))
+						r.WrapperOrigin = parseConcatSlice(dataFromFirstSpanChild(nn))
 
 					case "product-attribute-cig_filler":
-						r.FillerCountry = parseConcatSlice(dataFromFirstSpanChild(nn))
+						r.FillerOrigin = parseConcatSlice(dataFromFirstSpanChild(nn))
 
 					case "product-attribute-cig_aroma":
-						r.Aromas = parseConcatSlice(dataFromFirstSpanChild(nn))
+						r.Aroma = parseConcatSlice(dataFromFirstSpanChild(nn))
 
 					case "product-attribute-cig_form":
 						r.Form = dataFromATagText(nn)
-
 					}
 				}
 			}
 		}
 	}
-}
-
-func parseConcatSlice(s string) []string {
-	o := strings.Split(s, ",")
-	for i, v := range o {
-		o[i] = strings.TrimSpace(v)
-	}
-	return o
 }
 
 func readListProductBaseInfo(n *html.Node, r *Record) {
@@ -373,16 +336,80 @@ func readUrlAndName(n *html.Node, r *Record) {
 }
 
 func readDetails(v io.Reader, o *Record) (err error) {
-	if doc, er := html.Parse(v); er == nil {
-		for n := range doc.Descendants() {
-			if n.DataAtom == atom.Div {
-				for _, att := range n.Attr {
-					if att.Key == "class" && strings.HasPrefix(att.Val, "product-secondary-column") {
+	var doc *html.Node
+	if doc, err = html.Parse(v); err == nil {
+		n := htmlfilter.Node{Node: doc}
+		for n = range n.Find("li.product-attribute-") {
+			for _, attr := range n.Attr {
+				if attr.Key == "class" {
+					val := n.Node
+					switch attr.Val {
+					case "product-attribute-brand":
+						o.Brand = dataFromATagText(val)
+					case "product-attribute-series":
+						o.Series = dataFromATagText(val)
+					case "product-attribute-cig_duration":
+						o.SmokingDuration = dataFromFirstSpanChild(val)
+					case "product-attribute-cig_binder":
+						o.BinderOrigin = parseConcatSlice(dataFromFirstSpanChild(val))
+					case "product-attribute-cig_maker":
+						o.Maker = dataFromFirstSpanChild(val)
+					case "product-attribute-cig_wrapper_tobacco":
+						o.WrapperType = dataFromFirstSpanChild(val)
+					case "product-attribute-flavour_strength":
+						o.FlavourStrength = dataFromFirstSpanChild(val)
+					case "product-attribute-cig_gauge":
+						o.Gauge, err = strconv.Atoi(dataFromFirstSpanChild(val))
+					case "product-attribute-cig_special":
+						specialVal := dataFromFirstSpanChild(val)
+						switch {
+						case dataFromATagText(val) != "":
+							o.LimitedEdition = true
+						case specialVal != "":
+							o.Special = specialVal
+						}
 
+					case "product-attribute-cig_construction":
+						o.Construction = dataFromATagText(val)
 					}
 				}
 			}
 		}
 	}
 	return err
+}
+
+func spanReader(n *html.Node, fn func(n *html.Node) string) (o string) {
+	for c := range n.ChildNodes() {
+		for _, att := range c.Attr {
+			if att.Key == "class" && att.Val == "data" {
+				o = fn(c)
+				break
+			}
+		}
+	}
+	return o
+}
+
+func dataFromFirstSpanChild(n *html.Node) string {
+	return spanReader(n, func(n *html.Node) string { return strings.TrimSpace(n.FirstChild.Data) })
+}
+
+func dataFromATagText(n *html.Node) string {
+	return spanReader(n, func(n *html.Node) string {
+		for nnn := range n.Descendants() {
+			if nnn.DataAtom == atom.A {
+				return strings.TrimSpace(nnn.LastChild.Data)
+			}
+		}
+		return ""
+	})
+}
+
+func parseConcatSlice(s string) []string {
+	o := strings.Split(s, ",")
+	for i, v := range o {
+		o[i] = strings.TrimSpace(v)
+	}
+	return o
 }

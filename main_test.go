@@ -18,19 +18,19 @@ var list []byte
 func Test_readList(t *testing.T) {
 	want := []Record{
 		{
-			Name:           "Diesel Crucible Limited Edition 2021 Toro",
-			URL:            "https://www.noblego.de/diesel-crucible-toro-zigarren/",
-			OriginCountry:  "Nicaragua",
-			Format:         "Toro",
-			Form:           "Boxpressed",
-			WrapperCountry: []string{"Ecuador"},
-			FillerCountry:  []string{"Nicaragua"},
-			Strength:       "Medium",
-			Price:          11.5,
-			Diameter:       19.8,
-			Length:         152,
-			Aromas:         []string{"Espresso", "Nougat", "Nuss", "Röstaromen", "Schokolade", "Schwarzer Pfeffer"},
-			include:        true,
+			Name:               "Diesel Crucible Limited Edition 2021 Toro",
+			URL:                "https://www.noblego.de/diesel-crucible-toro-zigarren/",
+			ManufactureCountry: "Nicaragua",
+			Format:             "Toro",
+			Form:               "Boxpressed",
+			WrapperOrigin:      []string{"Ecuador"},
+			FillerOrigin:       []string{"Nicaragua"},
+			Strength:           "Medium",
+			Price:              11.5,
+			Diameter:           19.8,
+			Length:             152,
+			Aroma:              []string{"Espresso", "Nougat", "Nuss", "Röstaromen", "Schokolade", "Schwarzer Pfeffer"},
+			include:            true,
 		},
 	}
 	got, err, warn := readList(bytes.NewReader(list))
@@ -98,19 +98,19 @@ func Test_readListProductDetails(t *testing.T) {
 		</li>
 		<li class="product-attribute-cig_form">
 			<span class="label">Form</span>
-			<span class="data">Rund</span>
+			<span class="data"><a href="https://www.noblego.de/boxpressed-zigarren/">Boxpressed</a></span>
 		</li>
 </ul>
 </div>`)
 	node, err := html.Parse(doc)
 	assert.NoError(t, err)
 	want := Record{
-		OriginCountry:  "Nicaragua",
-		Format:         "Robusto",
-		Form:           "Rund",
-		WrapperCountry: []string{"Ecuador"},
-		FillerCountry:  []string{"Nicaragua"},
-		Aromas:         []string{"Süß", "Würzig", "Zedernholz"},
+		ManufactureCountry: "Nicaragua",
+		Format:             "Robusto",
+		Form:               "Boxpressed",
+		WrapperOrigin:      []string{"Ecuador"},
+		FillerOrigin:       []string{"Nicaragua"},
+		Aroma:              []string{"Süß", "Würzig", "Zedernholz"},
 	}
 	got := Record{}
 	readListProductDetails(node, &got)
@@ -191,23 +191,45 @@ func Test_readListProductPrice(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-//go:embed details.html
-var details []byte
+//go:embed details-diesel-crucible-toro.html
+var detailsDieselCrucibleToro []byte
+
+//go:embed details-diesel-cask-aged-robusto.html
+var detailsDieselCaskAgedRobusto []byte
 
 func Test_readDetails(t *testing.T) {
-	want := Record{
-		Brand:           "Diesel",
-		Collection:      "Crucible",
-		Blender:         "AJ Fernandez",
-		FillingType:     "Longfiller",
-		WrapperType:     "Ecuador",
-		BinderCountry:   []string{"Ecuador"},
-		Gauge:           50,
-		Aroma:           "Medium-aromatisch",
-		LimitedEdition:  true,
-		SmokingDuration: "60 bis 90 Min",
-	}
-	got := Record{}
-	assert.NoError(t, readDetails(bytes.NewReader(details), &got))
-	assert.Equal(t, want, got)
+	t.Run("diesel-crucible-toro", func(t *testing.T) {
+		want := Record{
+			Brand:           "Diesel",
+			Series:          "Crucible",
+			Maker:           "AJ Fernandez",
+			Construction:    "Longfiller",
+			BinderOrigin:    []string{"Ecuador"},
+			Gauge:           50,
+			FlavourStrength: "Medium-aromatisch",
+			LimitedEdition:  true,
+			SmokingDuration: "60 bis 90 Min",
+		}
+		got := Record{}
+		assert.NoError(t, readDetails(bytes.NewReader(detailsDieselCrucibleToro), &got))
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("diesel-cask-aged-robusto", func(t *testing.T) {
+		want := Record{
+			Brand:           "Diesel",
+			Series:          "Cask Aged",
+			Maker:           "AJ Fernandez",
+			Construction:    "Longfiller",
+			BinderOrigin:    []string{"Brasilien"},
+			WrapperType:     "Broadleaf",
+			Gauge:           52,
+			FlavourStrength: "Medium-aromatisch",
+			Special:         "fassgereifter Tabak",
+			SmokingDuration: "45 bis 60 Min",
+		}
+		got := Record{}
+		assert.NoError(t, readDetails(bytes.NewReader(detailsDieselCaskAgedRobusto), &got))
+		assert.Equal(t, want, got)
+	})
 }
