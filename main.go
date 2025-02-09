@@ -1,12 +1,17 @@
 package main
 
 import (
+	"cigarsdb/extract/noblego"
 	"cigarsdb/htmlfilter"
-	"encoding/json"
+	"cigarsdb/storage"
+	"cigarsdb/storage/fs"
+	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"math"
 	"net/http"
 	"os"
@@ -19,25 +24,54 @@ import (
 )
 
 func main() {
-	fName := "/tmp/cigardsdb_nobelgo.json"
-	f, err := os.OpenFile(fName, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0660)
+	var (
+		dumpDir                 string
+		limit, pageMin, pageMax uint
+	)
+	flag.StringVar(&dumpDir, "o", "/tmp", "output directory")
+	flag.UintVar(&limit, "limit", 100, "fetch limit per page")
+	flag.UintVar(&pageMin, "page-min", 1, "fetch starting from this page number")
+	flag.UintVar(&pageMax, "page-max", 0, "fetch until this page number is reached")
+	flag.Parse()
+
+	var logs = slog.New(slog.NewJSONHandler(os.Stdin, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+
+	destination, err := fs.NewClient(dumpDir)
 	if err != nil {
-		log.Printf("could not open file: %v", err)
+		logs.Error("could not init the writer", slog.Any("error", err))
 		return
 	}
-	defer func() { _ = f.Close() }()
 
-	data, err, warn := ExtractNobelgo(http.DefaultClient)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if warn != nil {
-		log.Printf("warnings: \n%v\n", warn)
-	}
+	source := noblego.Client{HTTPClient: http.DefaultClient}
 
-	if err = json.NewEncoder(f).Encode(data); err != nil {
-		log.Printf("could not write data to %s: %v", fName, err)
+	var rec []storage.Record
+	var nextPage uint
+	page := pageMin
+	pMax := pageMax
+	if pageMax == 0 {
+		pMax = page + 1
+	}
+	ctx := context.Background()
+	for page < pMax {
+		rec, nextPage, err = source.ReadBulk(ctx, limit, page)
+		if err != nil {
+			logs.Error("error fetching data", slog.Any("error", err), slog.Uint64("page", uint64(page)))
+			return
+		}
+		_, err = destination.WriteBulk(ctx, rec)
+		if err != nil {
+			logs.Error("error persisting the data", slog.Any("error", err),
+				slog.Uint64("page", uint64(page)))
+			return
+		}
+		if nextPage > page {
+			page = nextPage
+		}
+		if pageMax == 0 {
+			pMax = page + 1
+		}
 	}
 }
 
@@ -60,9 +94,9 @@ type Record struct {
 	FlavourStrength    string   `json:"flavourStrength"`
 	SmokingDuration    string   `json:"smokingDuration"`
 	Special            string   `json:"special"`
-	WrapperOrigin      []string `json:"wrapperOrigin"`
-	FillerOrigin       []string `json:"fillerOrigin"`
-	BinderOrigin       []string `json:"binderOrigin"`
+	Wrapper            []string `json:"wrapper"`
+	Filler             []string `json:"filler"`
+	Binder             []string `json:"binder"`
 	Aroma              []string `json:"aroma"`
 	Price              float64  `json:"price"`
 	Diameter           float64  `json:"diameter_mm"`
@@ -77,7 +111,7 @@ func ExtractNobelgo(c httpClient) (o []Record, err error, warn error) {
 	const itemsPerPage = 96
 	u := fmt.Sprintf(baseURL, itemsPerPage)
 
-	var page = 1
+	var page = 27
 	maxPage := page
 	var resp *http.Response
 	if resp, err = c.Get(u); err == nil {
@@ -88,17 +122,14 @@ func ExtractNobelgo(c httpClient) (o []Record, err error, warn error) {
 	}
 
 	for page < maxPage {
-		log.Printf("fetch data from page %d\n", page)
-		var (
-			er    error
-			found bool
-		)
+		log.Printf("extract data from page %d\n", page)
+		var er error
 		if resp, er = c.Get(fmt.Sprintf("%s&p=%d", u, page)); er == nil {
 			var (
 				warnInner error
 				v         []Record
 			)
-			v, found, er, warnInner = readPage(resp.Body, c)
+			v, er, warnInner = readPage(resp.Body, c)
 			_ = resp.Body.Close()
 			warn = errors.Join(warn, warnInner)
 			if er == nil {
@@ -107,9 +138,6 @@ func ExtractNobelgo(c httpClient) (o []Record, err error, warn error) {
 		}
 		if er != nil {
 			err = errors.Join(err, fmt.Errorf("error reading page %d: %w", page, er))
-		}
-		if !found {
-			break
 		}
 		page++
 	}
@@ -129,7 +157,7 @@ func foundTotalItems(v io.Reader) (o int, err error) {
 	return o, err
 }
 
-func readPage(v io.Reader, c httpClient) (o []Record, found bool, err error, warn error) {
+func readPage(v io.Reader, c httpClient) (o []Record, err error, warn error) {
 	o, err, warn = readList(v)
 	var flags = make(chan struct{}, len(o))
 	for i, el := range o {
@@ -141,7 +169,6 @@ func readPage(v io.Reader, c httpClient) (o []Record, found bool, err error, war
 				resp *http.Response
 			)
 			if resp, er = c.Get(el.URL); er == nil {
-				log.Printf("fetch details for item %d from %s\n", i, el.URL)
 				if er = readDetails(resp.Body, &el); er == nil {
 					o[i] = el
 				}
@@ -151,7 +178,6 @@ func readPage(v io.Reader, c httpClient) (o []Record, found bool, err error, war
 				err = errors.Join(err, fmt.Errorf("error reading details using %s: %w", el.URL, er))
 			}
 			flags <- struct{}{}
-			log.Printf("fetch details for item %d from %s\n: close", i, el.URL)
 		}()
 	}
 	maxN := len(o)
@@ -159,7 +185,7 @@ func readPage(v io.Reader, c httpClient) (o []Record, found bool, err error, war
 		<-flags
 		maxN--
 	}
-	return o, len(o) > 0, err, warn
+	return o, err, warn
 }
 
 func readList(v io.Reader) (o []Record, err error, warn error) {
@@ -173,11 +199,9 @@ func readList(v io.Reader) (o []Record, err error, warn error) {
 
 		for n = range n.Find("div.category-products") {
 			for nn := range n.Find("li.item") {
-				log.Printf("fetching data for the item %d\n", cnt)
 				wg.Add(1)
-				go func(wg *sync.WaitGroup, n *html.Node) {
+				go func(wg *sync.WaitGroup, mu *sync.Mutex, n *html.Node) {
 					defer wg.Done()
-					defer mu.Unlock()
 
 					r, er := readListElement(n)
 
@@ -187,7 +211,8 @@ func readList(v io.Reader) (o []Record, err error, warn error) {
 					} else {
 						warn = errors.Join(warn, fmt.Errorf("item %d: %w", cnt, er))
 					}
-				}(wg, nn.Node)
+					mu.Unlock()
+				}(wg, mu, nn.Node)
 				cnt++
 			}
 		}
@@ -290,10 +315,10 @@ func readListProductDetails(n *html.Node, r *Record) {
 						r.Format = dataFromATagText(nn)
 
 					case "product-attribute-cig_wrapper_origin":
-						r.WrapperOrigin = parseConcatSlice(dataFromFirstSpanChild(nn))
+						r.Wrapper = parseConcatSlice(dataFromFirstSpanChild(nn))
 
 					case "product-attribute-cig_filler":
-						r.FillerOrigin = parseConcatSlice(dataFromFirstSpanChild(nn))
+						r.Filler = parseConcatSlice(dataFromFirstSpanChild(nn))
 
 					case "product-attribute-cig_aroma":
 						r.Aroma = parseConcatSlice(dataFromFirstSpanChild(nn))
@@ -381,7 +406,7 @@ func readDetails(v io.Reader, o *Record) (err error) {
 					case "product-attribute-cig_duration":
 						o.SmokingDuration = dataFromFirstSpanChild(val)
 					case "product-attribute-cig_binder":
-						o.BinderOrigin = parseConcatSlice(dataFromFirstSpanChild(val))
+						o.Binder = parseConcatSlice(dataFromFirstSpanChild(val))
 					case "product-attribute-cig_maker":
 						o.Maker = dataFromFirstSpanChild(val)
 					case "product-attribute-cig_wrapper_tobacco":

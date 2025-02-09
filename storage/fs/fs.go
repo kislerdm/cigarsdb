@@ -72,13 +72,13 @@ func (c Client) Read(_ context.Context, id string) (storage.Record, error) {
 	return r, err
 }
 
-func (c Client) ReadBulk(_ context.Context, limit, page uint16) ([]storage.Record, uint16, error) {
+func (c Client) ReadBulk(_ context.Context, limit, page uint) ([]storage.Record, uint, error) {
 	const defaultLimit = 100
 
 	var (
 		rs       []storage.Record
 		err      error
-		nextPage uint16
+		nextPage uint
 	)
 
 	if limit == 0 {

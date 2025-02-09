@@ -66,7 +66,7 @@ type Writer interface {
 
 type Reader interface {
 	Read(ctx context.Context, id string) (r Record, err error)
-	ReadBulk(ctx context.Context, limit, page uint16) (r []Record, nextPage uint16, err error)
+	ReadBulk(ctx context.Context, limit, page uint) (r []Record, nextPage uint, err error)
 }
 
 // ReadWriter defines the interface to write and read data in sync.
