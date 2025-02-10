@@ -191,10 +191,10 @@ func Test_readListProductPrice(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-//go:embed details-diesel-crucible-toro.html
+//go:embed extract/noblego/testdata/details-diesel-crucible-toro.html
 var detailsDieselCrucibleToro []byte
 
-//go:embed details-diesel-cask-aged-robusto.html
+//go:embed extract/noblego/testdata/details-diesel-cask-aged-robusto.html
 var detailsDieselCaskAgedRobusto []byte
 
 func Test_readDetails(t *testing.T) {

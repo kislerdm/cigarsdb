@@ -28,19 +28,35 @@ func (n Node) Find(selector string) iter.Seq[Node] {
 			break
 		}
 		if nn.DataAtom == atomFilter {
-			for _, att := range nn.Attr {
-				if att.Key == attrKeyRef && attrValFilter(att.Val) {
-					parentOfFirstFound = &Node{nn.Parent}
+			switch attrKeyRef != "" {
+			case true:
+				for _, att := range nn.Attr {
+					if att.Key == attrKeyRef && attrValFilter(att.Val) {
+						parentOfFirstFound = &Node{nn.Parent}
+					}
 				}
+
+			default:
+				parentOfFirstFound = &Node{nn.Parent}
 			}
 		}
 	}
 	return func(yield func(Node) bool) {
 		if parentOfFirstFound != nil {
 			for nn := range parentOfFirstFound.ChildNodes() {
-				for _, att := range nn.Attr {
-					if att.Key == attrKeyRef && attrValFilter(att.Val) && !yield(Node{nn}) {
-						return
+				if nn.DataAtom == atomFilter {
+					switch attrKeyRef != "" {
+					case true:
+						for _, att := range nn.Attr {
+							if att.Key == attrKeyRef && attrValFilter(att.Val) && !yield(Node{nn}) {
+								return
+							}
+						}
+
+					default:
+						if !yield(Node{nn}) {
+							return
+						}
 					}
 				}
 			}
@@ -80,6 +96,8 @@ func readSelector(s string) (elementAtom atom.Atom, attrKeyRef string, attrValFi
 		elementAtom = atom.Lookup([]byte(classSplit[0]))
 		attrKeyRef = "class"
 		attrValFilter = classSelector(classSplit[1:])
+	default:
+		elementAtom = atom.Lookup([]byte(s))
 	}
 	if elementAtom == 0 {
 		panic("unsupported selector provided")

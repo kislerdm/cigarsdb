@@ -50,9 +50,7 @@ func TestNode_Find(t *testing.T) {
 		"found two nodes at zero layer": {
 			fragment: fragment,
 			selector: "li.foo",
-			want: []Node{
-				{l00}, {l01},
-			},
+			want:     []Node{{l00}, {l01}},
 		},
 		"found single node found at zero layer": {
 			fragment: fragment,
@@ -67,6 +65,11 @@ func TestNode_Find(t *testing.T) {
 		"no nodes found": {
 			fragment: fragment,
 			selector: "div.foo",
+		},
+		"found two nodes by tag only": {
+			fragment: fragment,
+			selector: "li",
+			want:     []Node{{l00}, {l01}},
 		},
 	}
 
