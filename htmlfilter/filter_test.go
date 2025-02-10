@@ -9,79 +9,137 @@ import (
 )
 
 func TestNode_Find(t *testing.T) {
-	//<ul><li class="foo"><ul><li class="foo qux"></li></ul></li><li class="foo bar"></li></ul>
-	fragmentHtml := &html.Node{DataAtom: atom.Ul, Type: html.ElementNode}
-	l00 := &html.Node{
-		Type:     html.ElementNode,
-		Parent:   fragmentHtml,
-		DataAtom: atom.Li,
-		Attr:     []html.Attribute{{Key: "class", Val: "foo"}},
-	}
-	l01 := &html.Node{
-		Type:     html.ElementNode,
-		Parent:   fragmentHtml,
-		DataAtom: atom.Li,
-		Attr:     []html.Attribute{{Key: "class", Val: "foo bar"}},
-	}
-	l00.NextSibling = l01
-	l01.PrevSibling = l00
-	fragmentHtml.FirstChild = l00
-	fragmentHtml.LastChild = l01
+	t.Run("exact", func(t *testing.T) {
+		//<ul><li class="foo"><ul><li class="foo qux"></li></ul></li><li class="foo bar"></li></ul>
+		fragmentHtml := &html.Node{DataAtom: atom.Ul, Type: html.ElementNode}
+		l00 := &html.Node{
+			Type:     html.ElementNode,
+			Parent:   fragmentHtml,
+			DataAtom: atom.Li,
+			Attr:     []html.Attribute{{Key: "class", Val: "foo"}},
+		}
+		l01 := &html.Node{
+			Type:     html.ElementNode,
+			Parent:   fragmentHtml,
+			DataAtom: atom.Li,
+			Attr:     []html.Attribute{{Key: "class", Val: "foo bar"}},
+		}
+		l00.NextSibling = l01
+		l01.PrevSibling = l00
+		fragmentHtml.FirstChild = l00
+		fragmentHtml.LastChild = l01
 
-	r1 := &html.Node{DataAtom: atom.Ul, Parent: l00, Type: html.ElementNode}
-	l10 := &html.Node{
-		Type:     html.ElementNode,
-		Parent:   r1,
-		DataAtom: atom.Li,
-		Attr:     []html.Attribute{{Key: "class", Val: "foo qux"}},
-	}
-	r1.FirstChild = l10
-	r1.LastChild = l10
-	l00.FirstChild = r1
-	l00.LastChild = r1
+		r1 := &html.Node{DataAtom: atom.Ul, Parent: l00, Type: html.ElementNode}
+		l10 := &html.Node{
+			Type:     html.ElementNode,
+			Parent:   r1,
+			DataAtom: atom.Li,
+			Attr:     []html.Attribute{{Key: "class", Val: "foo qux"}},
+		}
+		r1.FirstChild = l10
+		r1.LastChild = l10
+		l00.FirstChild = r1
+		l00.LastChild = r1
 
-	fragment := Node{fragmentHtml}
+		fragment := Node{fragmentHtml}
 
-	tests := map[string]struct {
-		fragment Node
-		selector string
-		want     []Node
-	}{
-		"found two nodes at zero layer": {
-			fragment: fragment,
-			selector: "li.foo",
-			want:     []Node{{l00}, {l01}},
-		},
-		"found single node found at zero layer": {
-			fragment: fragment,
-			selector: "li.foo.bar",
-			want:     []Node{{l01}},
-		},
-		"found single node at second layer": {
-			fragment: fragment,
-			selector: "li.qux",
-			want:     []Node{{l10}},
-		},
-		"no nodes found": {
-			fragment: fragment,
-			selector: "div.foo",
-		},
-		"found two nodes by tag only": {
-			fragment: fragment,
-			selector: "li",
-			want:     []Node{{l00}, {l01}},
-		},
-	}
+		tests := map[string]struct {
+			fragment Node
+			selector string
+			want     []Node
+		}{
+			"found two nodes at zero layer": {
+				fragment: fragment,
+				selector: "li.foo",
+				want:     []Node{{l00}, {l01}},
+			},
+			"found single node found at zero layer": {
+				fragment: fragment,
+				selector: "li.foo.bar",
+				want:     []Node{{l01}},
+			},
+			"found single node at second layer": {
+				fragment: fragment,
+				selector: "li.qux",
+				want:     []Node{{l10}},
+			},
+			"no nodes found": {
+				fragment: fragment,
+				selector: "div.foo",
+			},
+			"found two nodes by tag only": {
+				fragment: fragment,
+				selector: "li",
+				want:     []Node{{l00}, {l01}},
+			},
+		}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			var got []Node
-			for v := range test.fragment.Find(test.selector) {
-				got = append(got, v)
-			}
-			assert.Equal(t, test.want, got)
-		})
-	}
+		for name, test := range tests {
+			t.Run(name, func(t *testing.T) {
+				var got []Node
+				for v := range test.fragment.Find(test.selector) {
+					got = append(got, v)
+				}
+				assert.Equal(t, test.want, got)
+			})
+		}
+	})
+
+	t.Run("greedy", func(t *testing.T) {
+		//<ul><li class="foo-0 bar"><ul><li class="foo qux"></li></ul></li><li class="foo-1 bar"></li></ul>
+		fragmentHtml := &html.Node{DataAtom: atom.Ul, Type: html.ElementNode}
+		l00 := &html.Node{
+			Type:     html.ElementNode,
+			Parent:   fragmentHtml,
+			DataAtom: atom.Li,
+			Attr:     []html.Attribute{{Key: "class", Val: "foo-0 bar"}},
+		}
+		l01 := &html.Node{
+			Type:     html.ElementNode,
+			Parent:   fragmentHtml,
+			DataAtom: atom.Li,
+			Attr:     []html.Attribute{{Key: "class", Val: "foo-1 bar"}},
+		}
+		l00.NextSibling = l01
+		l01.PrevSibling = l00
+		fragmentHtml.FirstChild = l00
+		fragmentHtml.LastChild = l01
+
+		r1 := &html.Node{DataAtom: atom.Ul, Parent: l00, Type: html.ElementNode}
+		l10 := &html.Node{
+			Type:     html.ElementNode,
+			Parent:   r1,
+			DataAtom: atom.Li,
+			Attr:     []html.Attribute{{Key: "class", Val: "foo qux"}},
+		}
+		r1.FirstChild = l10
+		r1.LastChild = l10
+		l00.FirstChild = r1
+		l00.LastChild = r1
+
+		fragment := Node{fragmentHtml}
+		tests := map[string]struct {
+			fragment Node
+			selector string
+			want     []Node
+		}{
+			"found two nodes at zero layer using greedy selector": {
+				fragment: fragment,
+				selector: "li.foo-*",
+				want:     []Node{{l00}, {l01}},
+			},
+		}
+
+		for name, test := range tests {
+			t.Run(name, func(t *testing.T) {
+				var got []Node
+				for v := range test.fragment.Find(test.selector) {
+					got = append(got, v)
+				}
+				assert.Equal(t, test.want, got)
+			})
+		}
+	})
 }
 
 func Test_readSelector(t *testing.T) {

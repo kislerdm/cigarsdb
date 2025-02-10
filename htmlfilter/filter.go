@@ -2,6 +2,7 @@ package htmlfilter
 
 import (
 	"iter"
+	"slices"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -69,9 +70,20 @@ type selectorFn func(s string) bool
 func classSelector(v []string) selectorFn {
 	return func(s string) bool {
 		var cnt int
+		classVal := strings.Split(s, " ")
 		for _, vv := range v {
-			if strings.Contains(s, vv) {
-				cnt++
+			greedy := strings.HasSuffix(vv, "*")
+			switch greedy {
+			case true:
+				vv = strings.TrimSuffix(vv, "*")
+				if strings.Contains(s, vv) {
+					cnt++
+				}
+
+			case false:
+				if slices.Contains(classVal, vv) {
+					cnt++
+				}
 			}
 		}
 		return len(v) == cnt

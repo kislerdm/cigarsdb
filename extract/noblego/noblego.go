@@ -37,33 +37,26 @@ func (c Client) Read(_ context.Context, id string) (r storage.Record, err error)
 // Note that the pages which contain the word "sampler", or "Sampler" are discarded.
 func readDetailsPage(v io.ReadCloser, o *storage.Record) error {
 	var err error
-	var skipSampler bool
 	var doc *html.Node
 	if doc, err = html.Parse(v); err == nil {
 		n := htmlfilter.Node{Node: doc}
-
-		var extracted bool
-		for nn := range n.Find("div.product-name") {
-			if extracted {
-				break
-			}
-			for nn = range nn.Find("h1") {
-				s := nn.LastChild.Data
-				if strings.Contains(strings.ToLower(s), "sampler") {
-					skipSampler = true
-				} else {
-					o.Name = s
-				}
-				extracted = true
-			}
-		}
-
-		if !skipSampler {
-			err = readAttributes(n, o)
-			err = errors.Join(err, readPrice(n, o))
-		}
+		o.Name = readName(n)
+		err = readAttributes(n, o)
+		err = errors.Join(err, readPrice(n, o))
 	}
 	return err
+}
+
+func readName(n htmlfilter.Node) string {
+	var o string
+	for n = range n.Find("div.product-name") {
+		for name := range n.Find("h1") {
+			if name.LastChild != nil {
+				o = name.LastChild.Data
+			}
+		}
+	}
+	return o
 }
 
 func readPrice(n htmlfilter.Node, o *storage.Record) error {
@@ -71,18 +64,18 @@ func readPrice(n htmlfilter.Node, o *storage.Record) error {
 
 	var lastPriceOption htmlfilter.Node
 	var extracted bool
-	for n = range n.Find("ul.product-prices") {
+	for nn := range n.Find("ul.product-prices") {
 		if extracted {
 			break
 		}
-		for lastPriceOption = range n.Find("li") {
+		for lastPriceOption = range nn.Find("li") {
 		}
 		extracted = true
 	}
 
 	var cost float64
-	for n = range lastPriceOption.Find("span.price") {
-		tmp := n.LastChild.Data
+	for nnn := range lastPriceOption.Find("span.price") {
+		tmp := nnn.LastChild.Data
 		// remove length of euro sign with the unbreakable space
 		tmp = tmp[:len(tmp)-5]
 		tmp = strings.Replace(tmp, ",", ".", -1)
@@ -95,7 +88,7 @@ func readPrice(n htmlfilter.Node, o *storage.Record) error {
 			quantity, err = strconv.Atoi(strings.TrimSuffix(packaging.LastChild.Data, "er"))
 		}
 	}
-	if err != nil {
+	if err == nil {
 		o.Price = cost / float64(quantity)
 	}
 
@@ -104,12 +97,12 @@ func readPrice(n htmlfilter.Node, o *storage.Record) error {
 
 func readAttributes(n htmlfilter.Node, o *storage.Record) error {
 	var err error
-	for n = range n.Find("li.product-attribute-") {
-		for _, attr := range n.Attr {
+	for nn := range n.Find("li.product-attribute-*") {
+		for _, attr := range nn.Attr {
 			if attr.Key == "class" {
 				var er error
 
-				val := n.Node
+				val := nn.Node
 				switch attr.Val {
 				// Identification
 				case "product-attribute-brand":
@@ -143,12 +136,13 @@ func readAttributes(n htmlfilter.Node, o *storage.Record) error {
 				case "product-attribute-cig_maker":
 					o.Maker = dataFromFirstSpanChild(val)
 				case "product-attribute-herkunft":
-					if v := dataFromFirstSpanChild(val); v != nil {
+					if v := dataFromATagText(val); v != nil {
 						o.ManufactureOrigin = *v
 					}
 				case "product-attribute-cig_construction":
 					o.Construction = dataFromATagText(val)
 				case "product-attribute-cig_form":
+					o.IsBoxpressed = pointer(false)
 					if v := dataFromATagText(val); v != nil && strings.ToLower(*v) == "boxpressed" {
 						o.IsBoxpressed = pointer(true)
 					}
@@ -210,7 +204,10 @@ func spanReader(n *html.Node, fn func(n *html.Node) *string) (o *string) {
 }
 
 func dataFromFirstSpanChild(n *html.Node) *string {
-	return spanReader(n, func(n *html.Node) *string { return pointer(strings.TrimSpace(n.FirstChild.Data)) })
+	return spanReader(n, func(n *html.Node) *string {
+		s := strings.TrimSpace(n.FirstChild.Data)
+		return pointer(s)
+	})
 }
 
 func dataFromATagText(n *html.Node) *string {
@@ -232,9 +229,109 @@ func parseConcatSlice(s string) []string {
 	return o
 }
 
-func (c Client) ReadBulk(ctx context.Context, limit, page uint) (r []storage.Record, nextPage uint, err error) {
-	//TODO implement me
-	panic("implement me")
+func (c Client) ReadBulk(_ context.Context, limit, page uint) (r []storage.Record, nextPage uint, err error) {
+	const baseURL = "https://www.noblego.de/zigarren/?limit=%d&p=%d"
+	const itemsPerPage = 96
+	if limit == 0 || limit > itemsPerPage {
+		limit = itemsPerPage
+	}
+	if page == 0 {
+		page++
+	}
+	u := fmt.Sprintf(baseURL, limit, page)
+	var resp *http.Response
+	if resp, err = c.HTTPClient.Get(u); err == nil {
+		var totalItems uint
+		var urlItems []string
+		totalItems, urlItems, err = readItemsFromListPage(resp.Body)
+		_ = resp.Body.Close()
+
+		if err == nil && dataInCurrentPage(page, limit, totalItems) {
+			maxN := len(urlItems)
+			r = make([]storage.Record, maxN)
+			var flags = make(chan struct{}, maxN)
+			for i, u := range urlItems {
+				i := i
+				u := u
+				go func() {
+					var er error
+					if r[i], er = c.Read(nil, u); er != nil {
+						err = errors.Join(err, fmt.Errorf("error reading details using %s: %w", u, er))
+					}
+					flags <- struct{}{}
+				}()
+			}
+			for maxN > 0 {
+				<-flags
+				maxN--
+			}
+			if dataInCurrentPage(page+1, limit, totalItems) {
+				nextPage = page + 1
+			}
+		}
+	}
+	return r, nextPage, err
+}
+
+func dataInCurrentPage(page, limit, total uint) bool {
+	var o bool
+	switch page {
+	case 0, 1:
+		o = total > 0
+	default:
+		o = total > page*limit-limit
+	}
+	return o
+}
+
+func readItemsFromListPage(v io.ReadCloser) (totalItems uint, urls []string, err error) {
+	var n *html.Node
+	if n, err = html.Parse(v); err == nil {
+		nn := htmlfilter.Node{Node: n}
+		totalItems, err = readTotalNumberOfItems(nn)
+		if err == nil {
+			urls = readURLs(nn)
+		}
+	}
+	return totalItems, urls, err
+}
+
+func readURLs(n htmlfilter.Node) []string {
+	var o []string
+	for nn := range n.Find("li.item") {
+		for nn = range nn.Find("h2.product-name") {
+			for a := range nn.Find("a") {
+				if !skipItem(a) {
+					for _, att := range a.Attr {
+						if att.Key == "href" {
+							o = append(o, att.Val)
+						}
+					}
+				}
+			}
+		}
+	}
+	return o
+}
+
+func skipItem(n htmlfilter.Node) bool {
+	return n.LastChild != nil && strings.Contains(strings.ToLower(n.LastChild.Data), "sampler")
+}
+
+func readTotalNumberOfItems(n htmlfilter.Node) (uint, error) {
+	var (
+		o   uint
+		err error
+	)
+	for n = range n.Find("p.amount") {
+		s := strings.TrimSpace(strings.Split(n.LastChild.Data, " ")[0])
+		var tmp uint64
+		if tmp, err = strconv.ParseUint(s, 10, 64); err == nil {
+			o = uint(tmp)
+		}
+		break
+	}
+	return o, err
 }
 
 type HTTPClient interface {
