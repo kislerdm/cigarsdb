@@ -33,6 +33,8 @@ type Record struct {
 	Construction *string `json:"construction,omitempty"`
 	// IsBoxpressed indicates if cigar is manufactured using the box-press technology.
 	IsBoxpressed *bool `json:"isBoxpressed,omitempty"`
+	// IsDiscontinued indicates is the cigar is no longer in making.
+	IsDiscontinued *bool `json:"isDiscontinued,omitempty"`
 	// Blend
 	// WrapperOrigin the wrapper countries of origin.
 	WrapperOrigin []string `json:"wrapperOrigin,omitempty"`
