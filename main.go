@@ -37,12 +37,10 @@ func main() {
 	var rec []storage.Record
 	var nextPage uint
 	page := pageMin
-	pMax := pageMax
-	if pageMax == 0 {
-		pMax = page + 1
-	}
 	ctx := context.Background()
-	for page < pMax {
+	for page > 0 && page < pageMax+1 {
+		logs.Info("start fetching", slog.Uint64("page", uint64(page)))
+
 		rec, nextPage, err = source.ReadBulk(ctx, limit, page)
 		if err != nil {
 			logs.Error("error fetching data", slog.Any("error", err), slog.Uint64("page", uint64(page)))
@@ -54,11 +52,9 @@ func main() {
 				slog.Uint64("page", uint64(page)))
 			return
 		}
-		if nextPage > page {
-			page = nextPage
-		}
-		if pageMax == 0 {
-			pMax = page + 1
-		}
+
+		logs.Info("end fetching", slog.Uint64("page", uint64(page)))
+
+		page = nextPage
 	}
 }
