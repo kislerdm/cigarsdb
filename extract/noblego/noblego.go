@@ -2,12 +2,14 @@
 package noblego
 
 import (
+	"bytes"
 	"cigarsdb/htmlfilter"
 	"cigarsdb/storage"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -43,8 +45,133 @@ func readDetailsPage(v io.ReadCloser, o *storage.Record) error {
 		o.Name = readName(n)
 		err = readAttributes(n, o)
 		err = errors.Join(err, readPrice(n, o))
+		readFreeDetails(n, o)
 	}
 	return err
+}
+
+func readFreeDetails(n htmlfilter.Node, o *storage.Record) {
+	var tmp = make(map[string]string)
+	for nn := range n.Find("div.collateral-container") {
+		for nnn := range nn.Find("div.std") {
+			if found := readVideoURL(nnn, o); found {
+				for x := range nnn.Find("div.artikel-textblock") {
+					nnn = x
+					break
+				}
+			}
+			for detail := range nnn.Find("h3") {
+				if detail.LastChild != nil {
+					k := detail.LastChild.Data
+					var val bytes.Buffer
+					s := detail.Node
+					for s.NextSibling != nil {
+						s = s.NextSibling
+						if s.DataAtom == atom.H3 {
+							break
+						}
+						if s.DataAtom == atom.P {
+							if val.Len() > 0 {
+								_, _ = val.WriteString("\n")
+							}
+							_, _ = val.WriteString(strings.TrimSpace(htmlfilter.InnerHTML(s)))
+						}
+					}
+					if val.Len() > 0 {
+						tmp[k] = val.String()
+					}
+				}
+			}
+		}
+	}
+	if len(tmp) > 0 {
+		o.Details = maps.Clone(tmp)
+	}
+}
+
+func readVideoURL(n htmlfilter.Node, o *storage.Record) bool {
+	var found bool
+	for video := range n.Find("div.artikel-youtube-block") {
+		var videoNode htmlfilter.Node
+		for videoNode = range video.Find("object") {
+		}
+		if videoNode.Node == nil {
+			for videoNode = range n.Find("iframe") {
+				if videoNode.Node != nil {
+					break
+				}
+			}
+		}
+		if videoNode.Node != nil {
+			var videoURL string
+			var keyRef string
+			switch videoNode.DataAtom {
+			case atom.Object:
+				keyRef = "data"
+			case atom.Iframe:
+				keyRef = "src"
+			}
+			for _, att := range videoNode.Attr {
+				if att.Key == keyRef {
+					videoURL = newVideoURL(att.Val)
+				}
+			}
+			if videoURL != "" {
+				if o.VideoURLs == nil {
+					o.VideoURLs = make(map[string]string)
+				}
+				var videoDescription = ""
+
+				c := videoNode.NextSibling
+				for {
+					if c.DataAtom == atom.P {
+						if c.LastChild != nil {
+							videoDescription = c.LastChild.Data
+						}
+						break
+					}
+					switch v := c.NextSibling; v {
+					case nil:
+						break
+					default:
+						c = v
+					}
+				}
+
+				o.VideoURLs[videoDescription] = videoURL
+
+				found = true
+			}
+		}
+	}
+	return found
+}
+
+func newVideoURL(s string) string {
+	var trim = func(s string, tag string) string {
+		if els := strings.SplitN(s, tag, 2); len(els) == 2 {
+			s = els[1]
+			s = strings.SplitN(s, "?", 2)[0]
+		}
+		return s
+	}
+
+	if strings.Contains(s, "youtube") {
+		switch {
+		case strings.Contains(s, ".com/embed/"):
+			s = trim(s, ".com/embed/")
+		case strings.Contains(s, ".com/v/watch?v="):
+			s = trim(s, ".com/v/watch?v=")
+		case strings.Contains(s, ".com/v/"):
+			s = trim(s, ".com/v/")
+		}
+		// passthrough if the video ID was not extracted
+		if !strings.Contains(s, "youtube") {
+			s = fmt.Sprintf("https://www.youtube.com/watch?v=%s", s)
+		}
+	}
+
+	return s
 }
 
 func readName(n htmlfilter.Node) string {

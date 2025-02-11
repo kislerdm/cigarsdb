@@ -1,3 +1,11 @@
+## 0.2.0 - 2025-02-11
+
+### Added
+
+- Added the `Seek` method to the `fs` storage implementation to search for records using cigar name.
+- Added freetext description extraction to the package `extract/nobelgo`.
+- Added youtube link extraction to the package `extract/nobelgo`.
+
 ## 0.1.0 - 2025-02-10
 
 ### Added

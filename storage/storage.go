@@ -14,6 +14,10 @@ type Record struct {
 	Brand string `json:"brand"`
 	// Series cigar's series.
 	Series string `json:"series"`
+	// VideoURLs URL to the videos with the maker's interview, or other sort of description.
+	VideoURLs map[string]string `json:"videoURLs,omitempty"`
+	// Details freetext details, e.g., summary of the taste, or description of the cigar.
+	Details map[string]string `json:"details,omitempty"`
 	// Shape
 	Diameter   float64 `json:"diameter_mm"`
 	Ring       int     `json:"ring"`
