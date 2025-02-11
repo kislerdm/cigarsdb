@@ -16,7 +16,7 @@ func Test(t *testing.T) {
 	assert.NoError(t, err)
 	ctx := context.TODO()
 
-	t.Run("read emtpy storage", func(t *testing.T) {
+	t.Run("read empty storage", func(t *testing.T) {
 		got, err := c.Read(ctx, "foo")
 		assert.Error(t, err)
 		assert.Empty(t, got)

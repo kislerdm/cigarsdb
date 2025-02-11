@@ -106,7 +106,7 @@ func (c Client) ReadBulk(_ context.Context, limit, page uint) ([]storage.Record,
 			var r storage.Record
 			switch skipCnt > skipStart && writtenCnt < skipEnd {
 			case true:
-				if r, err = c.Read(nil, strings.TrimSuffix(p, ".json")); err == nil {
+				if r, err = c.Read(context.TODO(), strings.TrimSuffix(p, ".json")); err == nil {
 					rs = append(rs, r)
 					writtenCnt++
 				}

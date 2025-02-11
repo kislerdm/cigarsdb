@@ -19,8 +19,8 @@ type Node struct {
 // The search follows a combination of depth-first and breadth-first preorder: depth-first until firth occurrence is
 // found, afterward, only its siblings are scanned.
 //
-// Class selector: div.class0.class1
-// Id selector: div#id
+// Class selector: div.class0.class1.
+// Id selector: div#id.
 func (n Node) Find(selector string) iter.Seq[Node] {
 	atomFilter, attrKeyRef, attrValFilter := readSelector(selector)
 	var parentOfFirstFound *Node

@@ -229,7 +229,7 @@ func parseConcatSlice(s string) []string {
 	return o
 }
 
-func (c Client) ReadBulk(_ context.Context, limit, page uint) (r []storage.Record, nextPage uint, err error) {
+func (c Client) ReadBulk(ctx context.Context, limit, page uint) (r []storage.Record, nextPage uint, err error) {
 	const baseURL = "https://www.noblego.de/zigarren/?limit=%d&p=%d"
 	const itemsPerPage = 96
 	if limit == 0 || limit > itemsPerPage {
@@ -251,11 +251,9 @@ func (c Client) ReadBulk(_ context.Context, limit, page uint) (r []storage.Recor
 			r = make([]storage.Record, maxN)
 			var flags = make(chan struct{}, maxN)
 			for i, u := range urlItems {
-				i := i
-				u := u
 				go func() {
 					var er error
-					if r[i], er = c.Read(nil, u); er != nil {
+					if r[i], er = c.Read(ctx, u); er != nil {
 						err = errors.Join(err, fmt.Errorf("error reading details using %s: %w", u, er))
 					}
 					flags <- struct{}{}

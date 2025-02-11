@@ -6,12 +6,26 @@ import (
 	"cigarsdb/storage/fs"
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 )
 
+var version = "dev"
+
+func showVersion() {
+	for _, arg := range os.Args[1:] {
+		switch arg {
+		case "version", "V", "-v", "-version", "--version":
+			_, _ = fmt.Fprintf(os.Stdout, "version: %s\n", version)
+		}
+	}
+}
+
 func main() {
+	showVersion()
+
 	var (
 		dumpDir                 string
 		limit, pageMin, pageMax uint
