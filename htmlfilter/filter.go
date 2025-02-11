@@ -1,6 +1,7 @@
 package htmlfilter
 
 import (
+	"bytes"
 	"iter"
 	"slices"
 	"strings"
@@ -115,4 +116,33 @@ func readSelector(s string) (elementAtom atom.Atom, attrKeyRef string, attrValFi
 		panic("unsupported selector provided")
 	}
 	return elementAtom, attrKeyRef, attrValFilter
+}
+
+// InnerHTML equivalent of the js method innerHTML.
+func InnerHTML(s *html.Node) string {
+	var o bytes.Buffer
+	for c := range s.ChildNodes() {
+		switch c.DataAtom {
+		case 0:
+			_, _ = o.WriteString(c.Data)
+
+		default:
+			_, _ = o.WriteString("<")
+			_, _ = o.WriteString(c.Data)
+			for _, attr := range c.Attr {
+				_, _ = o.WriteString(" ")
+				_, _ = o.WriteString(attr.Key)
+				_, _ = o.WriteString("=")
+				_, _ = o.WriteString("\"")
+				_, _ = o.WriteString(attr.Val)
+				_, _ = o.WriteString("\"")
+			}
+			_, _ = o.WriteString(">")
+			o.WriteString(InnerHTML(c))
+			_, _ = o.WriteString("</")
+			_, _ = o.WriteString(c.Data)
+			_, _ = o.WriteString(">")
+		}
+	}
+	return o.String()
 }

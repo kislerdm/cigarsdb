@@ -1,6 +1,7 @@
 package htmlfilter
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -196,5 +197,31 @@ func Test_readSelector(t *testing.T) {
 				assert.True(t, gotAttrValFilter(v))
 			}
 		})
+	}
+}
+
+func TestInnerHTML(t *testing.T) {
+	in, err := html.Parse(strings.NewReader(`<div class="0">
+	<div class="1">
+		<p>foo<a href="http://foo.bar" title="foo">foo</a>. bar.</p>
+	</div>
+	<div class="1">
+		<p>bar<a href="http://bar.com" title="bar">bar</a>. qux.</p>
+	</div>
+</div>`))
+	assert.NoError(t, err)
+
+	want := `
+	<div class="1">
+		<p>foo<a href="http://foo.bar" title="foo">foo</a>. bar.</p>
+	</div>
+	<div class="1">
+		<p>bar<a href="http://bar.com" title="bar">bar</a>. qux.</p>
+	</div>
+`
+	n := Node{in}
+
+	for nn := range n.Find("div.0") {
+		assert.Equal(t, want, InnerHTML(nn.Node))
 	}
 }
