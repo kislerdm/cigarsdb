@@ -23,7 +23,7 @@ func Test(t *testing.T) {
 
 		gotBulk, nextPage, err := c.ReadBulk(ctx, 100, 0)
 		assert.NoError(t, err)
-		assert.Equal(t, uint16(0), nextPage)
+		assert.Equal(t, uint(0), nextPage)
 		assert.Nil(t, gotBulk)
 	})
 
@@ -53,9 +53,9 @@ func Test(t *testing.T) {
 	})
 
 	t.Run("read written records in bulk in one go", func(t *testing.T) {
-		gotBulk, nextPage, err := c.ReadBulk(ctx, uint16(len(wantBulk)), 0)
+		gotBulk, nextPage, err := c.ReadBulk(ctx, uint(len(wantBulk)), 0)
 		assert.NoError(t, err)
-		assert.Equal(t, uint16(0), nextPage)
+		assert.Equal(t, uint(0), nextPage)
 		assert.Len(t, gotBulk, len(wantBulk))
 
 		tmpWant := wantBulk
@@ -73,7 +73,7 @@ func Test(t *testing.T) {
 
 	t.Run("read written records in pages record", func(t *testing.T) {
 		var cnt int
-		var page uint16
+		var page uint
 		for {
 			got, nextPage, err := c.ReadBulk(ctx, 1, page)
 			assert.NoError(t, err)
@@ -89,4 +89,21 @@ func Test(t *testing.T) {
 		}
 		assert.Equal(t, len(wantBulk), cnt)
 	})
+}
+
+func TestClient_Seek(t *testing.T) {
+	dir := t.TempDir()
+	c, err := NewClient(dir)
+	assert.NoError(t, err)
+
+	wantName := "foo"
+	want := storage.Record{Name: wantName, ManufactureOrigin: "bar"}
+
+	ctx := context.TODO()
+	_, err = c.Write(ctx, want)
+	assert.NoError(t, err)
+
+	got, err := c.Seek(ctx, wantName)
+	assert.NoError(t, err)
+	assert.Equal(t, want, got)
 }

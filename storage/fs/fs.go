@@ -25,9 +25,13 @@ type Client struct {
 	Path string
 }
 
+func (c Client) Seek(ctx context.Context, name string) (r storage.Record, err error) {
+	return c.Read(ctx, c.newID(name))
+}
+
 func (c Client) Write(_ context.Context, r storage.Record) (string, error) {
 	var err error
-	id := c.newID(r)
+	id := c.newID(r.Name)
 	var f io.WriteCloser
 	if f, err = os.OpenFile(c.filePath(id), os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0660); err == nil {
 		defer func() { _ = f.Close() }()
@@ -45,7 +49,7 @@ func (c Client) WriteBulk(_ context.Context, r []storage.Record) ([]string, erro
 		err error
 	)
 	for i, el := range r {
-		id = c.newID(el)
+		id = c.newID(el.Name)
 		var f io.WriteCloser
 		if f, err = os.OpenFile(c.filePath(id), os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0660); err == nil {
 			if err = json.NewEncoder(f).Encode(el); err == nil {
@@ -125,8 +129,8 @@ func (c Client) filePath(id string) string {
 	return path.Join(c.Path, id) + ".json"
 }
 
-func (c Client) newID(r storage.Record) string {
+func (c Client) newID(name string) string {
 	h := sha1.New()
-	_, _ = io.WriteString(h, r.Name)
+	_, _ = io.WriteString(h, name)
 	return strings.TrimSpace(fmt.Sprintf("%x", h.Sum(nil)))
 }

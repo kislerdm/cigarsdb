@@ -72,6 +72,10 @@ type Reader interface {
 	ReadBulk(ctx context.Context, limit, page uint) (r []Record, nextPage uint, err error)
 }
 
+type Seeker interface {
+	Seek(ctx context.Context, name string) (r Record, err error)
+}
+
 // ReadWriter defines the interface to write and read data in sync.
 type ReadWriter interface {
 	Writer
