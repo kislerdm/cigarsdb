@@ -1,5 +1,9 @@
 ## 0.3.0 - 2025-02-12
 
+### Added
+
+- Added filter to fetch the data from noblego.de corresponding to the cigars with defined gauge.
+
 ### Fixed
 
 - Fixed links and additional information extraction from noblego.
