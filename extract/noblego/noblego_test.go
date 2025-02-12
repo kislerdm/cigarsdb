@@ -263,6 +263,7 @@ func Test_ReadVideo(t *testing.T) {
 				"und cremig im Rauch, bei den Aromen allerdings schöpft sie aus dem Vollen. Kaffee, fruchtige " +
 				"Töne und eine subtile Süße sind nur die Spitze des Eisberges dieses fein komponierten Zigarre. " +
 				"Das mindestens 7 Jahre alte Deckblatt aus Connecticut sorgt für einen unnachahmlichen Genuss. " +
+				//nolint:misspell //Perfektion is a correct German word
 				"Der Abbrand ist kreisrund, die Asche stabil und das Zugverhalten nahe der Perfektion. " +
 				"Eine feine Zigarre ist diese Robusto von Superstar der internationalen Zigarrenproduktion: " +
 				"Rocky Patel.",
