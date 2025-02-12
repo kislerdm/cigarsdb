@@ -23,7 +23,7 @@ var wantDieselCaskAgedRobusto = storage.Record{
 	Ring:                    52,
 	LengthInch:              5,
 	Length:                  127,
-	Format:                  "Robusto",
+	Format:                  "Robustos",
 	Maker:                   pointer("A.J. Fernandez"),
 	IsBoxpressed:            pointer(false),
 	IsFlavoured:             pointer(false),

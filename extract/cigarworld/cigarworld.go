@@ -112,7 +112,7 @@ func setAttribute(o *storage.Record, k string, v string) error {
 	case "Brand", "Marke":
 		o.Brand = v
 
-	case "Item", "Produkt":
+	case "Size", "Format":
 		o.Format = v
 
 	case "Fabrication", "Herstellungsart":
