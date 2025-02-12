@@ -1,3 +1,13 @@
+## 0.3.0 - 2025-02-12
+
+### Fixed
+
+- Fixed links and additional information extraction from noblego.
+
+### Changed
+
+- **[BREAKING]** Changed the video URL type from map to slice.
+
 ## 0.2.0 - 2025-02-11
 
 ### Added

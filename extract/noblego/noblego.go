@@ -82,6 +82,7 @@ func readFreeDetails(n htmlfilter.Node, o *storage.Record) {
 					}
 				}
 			}
+			break
 		}
 	}
 	if len(tmp) > 0 {
@@ -117,32 +118,11 @@ func readVideoURL(n htmlfilter.Node, o *storage.Record) bool {
 				}
 			}
 			if videoURL != "" {
-				if o.VideoURLs == nil {
-					o.VideoURLs = make(map[string]string)
-				}
-				var videoDescription = ""
-
-				c := videoNode.NextSibling
-				for {
-					if c.DataAtom == atom.P {
-						if c.LastChild != nil {
-							videoDescription = c.LastChild.Data
-						}
-						break
-					}
-					switch v := c.NextSibling; v {
-					case nil:
-						break
-					default:
-						c = v
-					}
-				}
-
-				o.VideoURLs[videoDescription] = videoURL
-
+				o.VideoURLs = append(o.VideoURLs, videoURL)
 				found = true
 			}
 		}
+		break
 	}
 	return found
 }
@@ -357,7 +337,8 @@ func parseConcatSlice(s string) []string {
 }
 
 func (c Client) ReadBulk(ctx context.Context, limit, page uint) (r []storage.Record, nextPage uint, err error) {
-	const baseURL = "https://www.noblego.de/zigarren/?limit=%d&p=%d"
+	// add gauge filter to omit lighters etc.
+	const baseURL = "https://www.noblego.de/zigarren/?cig_gauge%5B0%5D=4481&cig_gauge%5B1%5D=3135&cig_gauge%5B2%5D=208&cig_gauge%5B3%5D=207&cig_gauge%5B4%5D=206&cig_gauge%5B5%5D=205&cig_gauge%5B6%5D=204&cig_gauge%5B7%5D=203&cig_gauge%5B8%5D=202&cig_gauge%5B9%5D=201&cig_gauge%5B10%5D=200&cig_gauge%5B11%5D=199&cig_gauge%5B12%5D=198&cig_gauge%5B13%5D=197&cig_gauge%5B14%5D=196&cig_gauge%5B15%5D=233&cig_gauge%5B16%5D=232&cig_gauge%5B17%5D=231&cig_gauge%5B18%5D=230&cig_gauge%5B19%5D=1488&cig_gauge%5B20%5D=229&cig_gauge%5B21%5D=228&cig_gauge%5B22%5D=227&cig_gauge%5B23%5D=2260&cig_gauge%5B24%5D=226&cig_gauge%5B25%5D=225&cig_gauge%5B26%5D=224&cig_gauge%5B27%5D=223&cig_gauge%5B28%5D=222&cig_gauge%5B29%5D=221&cig_gauge%5B30%5D=220&cig_gauge%5B31%5D=219&cig_gauge%5B32%5D=218&cig_gauge%5B33%5D=217&cig_gauge%5B34%5D=216&cig_gauge%5B35%5D=215&cig_gauge%5B36%5D=214&cig_gauge%5B37%5D=213&cig_gauge%5B38%5D=212&cig_gauge%5B39%5D=1025&cig_gauge%5B40%5D=211&cig_gauge%5B41%5D=210&cig_gauge%5B42%5D=2763&cig_gauge%5B43%5D=2604&cig_gauge%5B44%5D=1753&cig_gauge%5B45%5D=1730&cig_gauge%5B46%5D=4517&cig_gauge%5B47%5D=1022&cig_gauge%5B48%5D=209&cig_gauge%5B49%5D=1731&cig_gauge%5B50%5D=1661&cig_gauge%5B51%5D=2344&cig_gauge%5B52%5D=4624"
 	const itemsPerPage = 96
 	if limit == 0 || limit > itemsPerPage {
 		limit = itemsPerPage
@@ -365,7 +346,7 @@ func (c Client) ReadBulk(ctx context.Context, limit, page uint) (r []storage.Rec
 	if page == 0 {
 		page++
 	}
-	u := fmt.Sprintf(baseURL, limit, page)
+	u := baseURL + fmt.Sprintf("&limit=%d&p=%d", limit, page)
 	var resp *http.Response
 	if resp, err = c.HTTPClient.Get(u); err == nil {
 		var totalItems uint

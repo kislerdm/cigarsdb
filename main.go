@@ -2,7 +2,6 @@ package main
 
 import (
 	"cigarsdb/extract/noblego"
-	"cigarsdb/storage"
 	"cigarsdb/storage/fs"
 	"context"
 	"flag"
@@ -27,8 +26,9 @@ func main() {
 	showVersion()
 
 	var (
-		dumpDir                 string
-		limit, pageMin, pageMax uint
+		dumpDir        string
+		limit, pageMin uint
+		pageMax        uint
 	)
 	flag.StringVar(&dumpDir, "o", "/tmp", "output directory")
 	flag.UintVar(&limit, "limit", 100, "fetch limit per page")
@@ -48,14 +48,12 @@ func main() {
 
 	source := noblego.Client{HTTPClient: http.DefaultClient}
 
-	var rec []storage.Record
-	var nextPage uint
 	page := pageMin
 	ctx := context.Background()
-	for page > 0 && page < pageMax+1 {
+	for page > 0 {
 		logs.Info("start fetching", slog.Uint64("page", uint64(page)))
 
-		rec, nextPage, err = source.ReadBulk(ctx, limit, page)
+		rec, nextPage, err := source.ReadBulk(ctx, limit, page)
 		if err != nil {
 			logs.Error("error fetching data", slog.Any("error", err), slog.Uint64("page", uint64(page)))
 			return
@@ -68,6 +66,10 @@ func main() {
 		}
 
 		logs.Info("end fetching", slog.Uint64("page", uint64(page)))
+
+		if pageMax > 0 && page == pageMax {
+			break
+		}
 
 		page = nextPage
 	}

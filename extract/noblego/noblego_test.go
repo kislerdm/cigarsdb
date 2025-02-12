@@ -225,10 +225,9 @@ func (m mockHttp) Get(url string) (*http.Response, error) {
 var listData []byte
 
 func TestClient_ReadBulk(t *testing.T) {
-	listUrl := "https://www.noblego.de/zigarren/?limit=96&p=1"
 	c := Client{HTTPClient: mockHttp{
+		Body: io.NopCloser(bytes.NewReader(listData)),
 		BodyRoute: map[string]io.ReadCloser{
-			listUrl: io.NopCloser(bytes.NewReader(listData)),
 			"https://www.noblego.de/diesel-cask-aged-robusto-zigarren/": io.NopCloser(bytes.NewReader(
 				detailsDieselCaskAgedRobusto)),
 			"https://www.noblego.de/diesel-crucible-toro-zigarren/": io.NopCloser(bytes.NewReader(
@@ -254,12 +253,10 @@ var detailsRockyPatelVintageConnecticut1999 []byte
 func Test_ReadVideo(t *testing.T) {
 	c := Client{HTTPClient: mockHttp{Body: io.NopCloser(bytes.NewReader(detailsRockyPatelVintageConnecticut1999))}}
 	want := storage.Record{
-		Name:   "Rocky Patel Vintage Connecticut 1999 Robusto",
-		Brand:  "Rocky Patel",
-		Series: "Vintage Connecticut 1999",
-		VideoURLs: map[string]string{
-			"Rocky Patel persönlich präsentiert exklusiv bei Noblego seine Vintage 1999 Serie.": "https://www.youtube.com/watch?v=jYW29PKpjyY",
-		},
+		Name:      "Rocky Patel Vintage Connecticut 1999 Robusto",
+		Brand:     "Rocky Patel",
+		Series:    "Vintage Connecticut 1999",
+		VideoURLs: []string{"https://www.youtube.com/watch?v=jYW29PKpjyY"},
 		Details: map[string]string{
 			"Genuss": "Die Rocky Patel Vintage Connecticut 1999 Robusto ist mit ihren 12,7 Zentimetern Länge und dem " +
 				"50er Ringmaß eine klassische Robusto. Und doch ist sie so vieles mehr als nur das. Sie ist sehr mild " +
@@ -311,6 +308,79 @@ func Test_readYoutubeVideoID(t *testing.T) {
 	for in, want := range tests {
 		t.Run(in, func(t *testing.T) {
 			assert.Equal(t, want, newVideoURL(in))
+		})
+	}
+}
+
+//go:embed testdata/details-la-aroma-del-caribe-no-2.html
+var detailsLaAroma []byte
+
+//go:embed testdata/details-carlos-torano-casa-torano-toro.html
+var detailsCarlosToranoCasaTorano []byte
+
+func TestClient_ReadExceptionalStructure(t *testing.T) {
+	tests := map[string]struct {
+		in   []byte
+		want storage.Record
+	}{
+		"La Aroma del Caribe No. 2": {
+			in: detailsLaAroma,
+			want: storage.Record{
+				Name:                     "La Aroma del Caribe No. 2",
+				Brand:                    "La Aroma del Caribe",
+				Series:                   "Edición Especial",
+				VideoURLs:                []string{"https://www.youtube.com/watch?v=5ax4TwIiQCo"},
+				Diameter:                 19.8,
+				Ring:                     50,
+				Length:                   127,
+				Format:                   "Robusto",
+				ManufactureOrigin:        "Nicaragua",
+				WrapperOrigin:            []string{"Ecuador"},
+				FillerOrigin:             []string{"Nicaragua"},
+				BinderOrigin:             []string{"Nicaragua"},
+				AromaProfileManufacturer: []string{"Erdig", "Fruchtig", "Leder", "Zedernholz", "Zimt"},
+				Strength:                 pointer("Stark"),
+				FlavourStrength:          pointer("Medium-aromatisch"),
+				SmokingDuration:          pointer("45 bis 90 Min"),
+				Price:                    8.5,
+			},
+		},
+		"Carlos Toraño Casa Toraño Toro": {
+			in: detailsCarlosToranoCasaTorano,
+			want: storage.Record{
+				Name:   "Carlos Toraño Casa Toraño Toro",
+				Brand:  "Carlos Toraño",
+				Series: "Casa Toraño",
+				Details: map[string]string{
+					"Genuss": "Die Serie Casa Toraño beinhaltet einen Blend mit Tabaken aus Honduras, Nicaragua und einer zusätzlichen Spezialmischung anderer zentralamerikanischer Tabake. Das Umblatt stammt aus Nicaragua, das Deckblatt ist ein sehr schönes Ecuador Connecticut. Im Geschmack liefert die Carlos Toraño Casa Toraño Toro ein wunderschönes Beispiel für das Zusammenspiel von Röstaromen, leichten Räucheraromen, nussigen Nuancen und auch Zitrusfrüchten. Der Duft der Casa Torano Toro überzeugt ebenfalls den verwöhnten Aficionado. Am Gaumen offenbart die Toro vielschichtige Noten von Holz, Nuss und Gewürzen. Diese Tabakware berührt somit alle Sinneseindrücke auf das Feinste.",
+					"Fazit":  "Carlos Toraño Casa Toraño Toro: Ein milder und dabei mittelkräftiger Smoke zu einem sehr fairen Preis.",
+				},
+				Diameter:                 19,
+				Ring:                     48,
+				Length:                   158,
+				Format:                   "Toro",
+				ManufactureOrigin:        "Honduras",
+				TypeOfManufacturing:      nil,
+				Construction:             pointer("Longfiller"),
+				WrapperOrigin:            []string{"Ecuador"},
+				IsBoxpressed:             pointer(false),
+				FillerOrigin:             []string{"Honduras", "Nicaragua", "Peru"},
+				BinderOrigin:             []string{"Nicaragua"},
+				WrapperType:              pointer("Connecticut Shade"),
+				AromaProfileManufacturer: []string{"Cremig", "Erdig", "Gewürze", "Nuss", "Pfeffer", "Röstaromen"},
+				Strength:                 pointer("Medium"),
+				FlavourStrength:          pointer("Mild-aromatisch"),
+				SmokingDuration:          pointer("45 bis 90 Min"),
+				Price:                    7.5,
+			},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			c := Client{HTTPClient: mockHttp{Body: io.NopCloser(bytes.NewReader(tt.in))}}
+			got, err := c.Read(context.TODO(), "")
+			assert.NoError(t, err)
+			recordsEqual(t, tt.want, got)
 		})
 	}
 }
