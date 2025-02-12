@@ -56,6 +56,29 @@ var wantMyFatherCigarsLimitedEditionTatuajeLaUnion = storage.Record{
 	WrapperProperty:       pointer("Shade"),
 	TypeOfManufacturing:   pointer("TAM"),
 	Price:                 87.3,
+	Details: map[string]string{
+		"description": "<p>Die exklusive<strong> Kollaboration</strong> zwischen " +
+			"<a href=\"/my-father-cigars\" target=\"_self\"><strong>My Father Cigars</strong>" +
+			"</a> und <a href=\"/tatuaje\" target=\"_self\"><strong>Tatuaje</strong>" +
+			"</a> hat den limitierten <strong>Sampler La Union</strong> für 2023 herausgebracht." +
+			"</p><div class=\"blanktag\" style=\"background: url('https://www.cigarworld.de/binary/shop/blank');\">" +
+			"</div>\n                                            " +
+			"<p>Dieses einzigartige Set enthält je 20 Zigarren der Sorten <strong>Prominente Especial Tatuaje" +
+			"</strong> mit einem Deckblatt aus nicaraguanischem Shade Grown Corojo 99 und <strong>" +
+			"Prominente Especial My Father</strong> mit einem Deckblatt aus Ecuador H-2000.</p>" +
+			"<div class=\"blanktag\" style=\"background: url('https://www.cigarworld.de/binary/shop/blank');\"></div>" +
+			"\n                                            " +
+			"<p><span>Wir freuen uns sehr, einige der <strong>weltweit nur 1.500" +
+			"</strong> produzierten schwarz-glänzenden Kisten ergattert zu haben, von denen lediglich " +
+			"30 ihren Weg nach Deutschland gefunden haben.</span></p><div class=\"blanktag\" style=\"background: " +
+			"url('https://www.cigarworld.de/binary/shop/blank');\"></div>" +
+			"\n                                            " +
+			"<p>Die Warnhinweise befinden sich NUR auf dem <strong>äußeren Karton</strong>, nicht wie bei unseren " +
+			"Bildern dargestellt, in oder auf der Kiste. D.h. die Kiste ist in ihrem <strong>schönen</strong>, " +
+			"<strong>unbeklebten</strong> Zustand. Wir haben diese Warnhinweise digital hinzugefügt, um " +
+			"gegebenenfalls Probleme mit Behörden zu vermeiden.</p><div class=\"blanktag\" style=\"background: " +
+			"url('https://www.cigarworld.de/binary/shop/blank');\"></div>",
+	},
 }
 
 func TestClient_Read(t *testing.T) {

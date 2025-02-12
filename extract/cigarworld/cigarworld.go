@@ -40,8 +40,18 @@ func readDetailsPage(v io.ReadCloser, o *storage.Record) error {
 		o.Name = readName(n)
 		err = readAttributes(n, o)
 		err = errors.Join(err, readPrice(n, o))
+		readDescription(n, o)
 	}
 	return err
+}
+
+func readDescription(n htmlfilter.Node, o *storage.Record) {
+	for nn := range n.Find("div.contentpage__content") {
+		if tmp := htmlfilter.InnerHTML(nn.Node); tmp != "" {
+			o.Details = map[string]string{"description": tmp}
+		}
+		break
+	}
 }
 
 func readPrice(n htmlfilter.Node, o *storage.Record) error {
