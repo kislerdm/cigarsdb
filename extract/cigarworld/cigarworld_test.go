@@ -33,7 +33,7 @@ var wantDieselCaskAgedRobusto = storage.Record{
 	WrapperType:             pointer("Broadleaf"),
 	OuterLeafTobaccoVariety: pointer("San Andrés"),
 	TypeOfManufacturing:     pointer("TAM"),
-	//Price:           8.9,
+	Price:                   8.9,
 }
 
 func TestClient_Read(t *testing.T) {

@@ -38,6 +38,24 @@ func readDetailsPage(v io.ReadCloser, o *storage.Record) error {
 		n := htmlfilter.Node{Node: doc}
 		o.Name = readName(n)
 		err = readAttributes(n, o)
+		err = errors.Join(err, readPrice(n, o))
+	}
+	return err
+}
+
+func readPrice(n htmlfilter.Node, o *storage.Record) error {
+	var err error
+	for nn := range n.Find("span.preis") {
+		for nn = range nn.Find("span") {
+			for _, att := range nn.Attr {
+				if att.Key == "data-eurval" {
+					o.Price, err = strconv.ParseFloat(att.Val, 64)
+					break
+				}
+			}
+			break
+		}
+		break
 	}
 	return err
 }
