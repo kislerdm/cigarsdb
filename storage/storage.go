@@ -48,6 +48,8 @@ type Record struct {
 	BinderOrigin []string `json:"binderOrigin,omitempty"`
 	// WrapperType the wrapper leaf type, e.g., Sun Grown.
 	WrapperType *string `json:"wrapperType,omitempty"`
+	// OuterLeafTobaccoVariety the wrapper outer leaf tobacco's variety.
+	OuterLeafTobaccoVariety *string `json:"outerLeafTobaccoVariety,omitempty"`
 	// IsFlavoured indicates if the cigar is flavoured.
 	IsFlavoured *bool `json:"isFlavoured,omitempty"`
 	// AromaProfileManufacturer Array of aroma flavours according to the data source / website.
