@@ -6,6 +6,7 @@ import (
 	"cigarsdb/storage"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -45,11 +46,12 @@ func readDetailsPage(v io.ReadCloser, o *storage.Record) error {
 
 func readPrice(n htmlfilter.Node, o *storage.Record) error {
 	var err error
+	var costs float64
 	for nn := range n.Find("span.preis") {
 		for nn = range nn.Find("span") {
 			for _, att := range nn.Attr {
 				if att.Key == "data-eurval" {
-					o.Price, err = strconv.ParseFloat(att.Val, 64)
+					costs, err = strconv.ParseFloat(att.Val, 64)
 					break
 				}
 			}
@@ -57,6 +59,25 @@ func readPrice(n htmlfilter.Node, o *storage.Record) error {
 		}
 		break
 	}
+	if err == nil {
+		for nn := range n.Find("span.einheitlabel") {
+			if nn.FirstChild != nil {
+				cntUnitsStr := strings.TrimSuffix(strings.TrimSpace(nn.FirstChild.Data), "er")
+				var cntUnits int
+				if cntUnits, err = strconv.Atoi(cntUnitsStr); err == nil {
+					if cntUnits > 0 {
+						o.Price = float64(int(costs*100) / cntUnits)
+						o.Price = o.Price / 100
+
+					} else {
+						err = fmt.Errorf("could not define price")
+					}
+				}
+			}
+			break
+		}
+	}
+
 	return err
 }
 
@@ -146,19 +167,31 @@ func setAttribute(o *storage.Record, k string, v string) error {
 		o.Maker = &v
 
 	case "Binder origin", "Umblatt Land":
-		o.BinderOrigin = strings.Split(v, ",")
-
-	case "Filler origin", "Einlage Land":
-		o.FillerOrigin = strings.Split(v, ",")
-
-	case "Wrapper origin", "Deckblatt Land":
-		o.WrapperOrigin = strings.Split(v, ",")
-
-	case "Topsheet / -leave property", "Deckblatt Eigenschaft":
-		o.WrapperType = &v
+		o.BinderOrigin = splitCommaseparatedVals(v)
 
 	case "Outer leaf tobacco variety", "Umblatt Tabaksorte":
-		o.OuterLeafTobaccoVariety = &v
+		o.BinderTobaccoVariety = &v
+
+	case "Outer leaf tobacco property", "Umblatt Eigenschaft":
+		o.BinderProperty = &v
+
+	case "Filler origin", "Einlage Land":
+		o.FillerOrigin = splitCommaseparatedVals(v)
+
+	case "Einlage Tabaksorte":
+		o.FillerTobaccoVariety = &v
+
+	case "Einlage Eigenschaft":
+		o.FillerProperty = &v
+
+	case "Wrapper origin", "Deckblatt Land":
+		o.WrapperOrigin = splitCommaseparatedVals(v)
+
+	case "Topsheet / -leave tobacco variety", "Deckblatt Tabaksorte":
+		o.WrapperTobaccoVariety = &v
+
+	case "Topsheet / -leave property", "Deckblatt Eigenschaft":
+		o.WrapperProperty = &v
 
 	case "Length", "Länge":
 		s := strings.SplitN(v, " ", 2)[0]
@@ -167,7 +200,11 @@ func setAttribute(o *storage.Record, k string, v string) error {
 			o.LengthInch, err = strconv.ParseFloat(s, 64)
 		case strings.HasSuffix(v, "cm"):
 			if o.Length, err = strconv.ParseFloat(s, 64); err == nil {
-				o.Length = o.Length * 10
+				// fix rounding
+				// e.g. 18.42 -> 184.2000...02
+				// FIXME(?) can it be done more efficiently?
+				tmp := int(o.Length * 100)
+				o.Length = float64(tmp/10) + float64(tmp-(tmp/10)*10)/10
 			}
 		}
 
@@ -176,13 +213,22 @@ func setAttribute(o *storage.Record, k string, v string) error {
 		switch {
 		case strings.HasSuffix(v, "cm"):
 			if o.Diameter, err = strconv.ParseFloat(s, 64); err == nil {
-				o.Diameter = o.Diameter * 10
+				tmp := int(o.Diameter * 100)
+				o.Diameter = float64(tmp/10) + float64(tmp-(tmp/10)*10)/10
 			}
 		default:
 			o.Ring, err = strconv.Atoi(s)
 		}
 	}
 	return err
+}
+
+func splitCommaseparatedVals(v string) []string {
+	var o []string
+	for _, vv := range strings.Split(v, ",") {
+		o = append(o, strings.TrimSpace(vv))
+	}
+	return o
 }
 
 func pointer[V bool | int | string](v V) *V {
@@ -202,5 +248,6 @@ func readName(n htmlfilter.Node) string {
 
 func (c Client) ReadBulk(ctx context.Context, limit, page uint) (r []storage.Record, nextPage uint, err error) {
 	//TODO implement me
+	// TODO: filter the words "humidor", "sampler", "jar", "kiste" in the lowered text
 	panic("implement me")
 }

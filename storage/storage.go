@@ -18,6 +18,7 @@ type Record struct {
 	VideoURLs []string `json:"videoURLs,omitempty"`
 	// Details freetext details, e.g., summary of the taste, or description of the cigar.
 	Details map[string]string `json:"details,omitempty"`
+
 	// Shape
 	Diameter   float64 `json:"diameter_mm"`
 	Ring       int     `json:"ring"`
@@ -25,6 +26,7 @@ type Record struct {
 	LengthInch float64 `json:"length_inch"`
 	// Format the cigar's format, e.g., robusto.
 	Format string `json:"format"`
+
 	// Manufacturing
 	// Maker cigar maker, or blender who created the cigar, e.g., AJ Fernandez.
 	Maker *string `json:"maker,omitempty"`
@@ -39,28 +41,43 @@ type Record struct {
 	IsBoxpressed *bool `json:"isBoxpressed,omitempty"`
 	// IsDiscontinued indicates is the cigar is no longer in making.
 	IsDiscontinued *bool `json:"isDiscontinued,omitempty"`
+
 	// Blend
+
 	// WrapperOrigin the wrapper countries of origin.
 	WrapperOrigin []string `json:"wrapperOrigin,omitempty"`
+	// WrapperProperty the wrapper leaf type, e.g., Shade, Sun Grown etc.
+	WrapperProperty *string `json:"wrapperProperty,omitempty"`
+	// WrapperTobaccoVariety the wrapper outer leaf tobacco's variety.
+	WrapperTobaccoVariety *string `json:"WrapperTobaccoVariety,omitempty"`
+
 	// FillerOrigin the filler countries of origin.
 	FillerOrigin []string `json:"fillerOrigin,omitempty"`
+	// FillerProperty the filler property, e.g., Jalapa.
+	FillerProperty *string `json:"fillerProperty,omitempty"`
+	// FillerTobaccoVariety the filler property, e.g., Jalapa.
+	FillerTobaccoVariety *string `json:"fillerTobaccoVariety,omitempty"`
+
 	// BinderOrigin the binder countries of origin.
 	BinderOrigin []string `json:"binderOrigin,omitempty"`
-	// WrapperType the wrapper leaf type, e.g., Sun Grown.
-	WrapperType *string `json:"wrapperType,omitempty"`
-	// OuterLeafTobaccoVariety the wrapper outer leaf tobacco's variety.
-	OuterLeafTobaccoVariety *string `json:"outerLeafTobaccoVariety,omitempty"`
+	// BinderProperty the binder leaf type.
+	BinderProperty *string `json:"binderProperty,omitempty"`
+	// BinderTobaccoVariety the binder property.
+	BinderTobaccoVariety *string `json:"BinderTobaccoVariety,omitempty"`
+
 	// IsFlavoured indicates if the cigar is flavoured.
 	IsFlavoured *bool `json:"isFlavoured,omitempty"`
 	// AromaProfileManufacturer Array of aroma flavours according to the data source / website.
 	AromaProfileManufacturer []string `json:"aromaProfileManufacturer,omitempty"`
 	// AromaProfileCommunity aroma flavours with their weights from 0 to 1 according to the community.
 	AromaProfileCommunity map[string]float64 `json:"aromaProfileCommunity,omitempty"`
+
 	// Experience
 	Strength        *string `json:"strength,omitempty"`
 	FlavourStrength *string `json:"flavourStrength,omitempty"`
 	// SmokingDuration reference smoking duration in minutes.
 	SmokingDuration *string `json:"smokingDuration,omitempty"`
+
 	// Purchase
 	Price float64 `json:"price"`
 
