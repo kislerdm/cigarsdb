@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 // Client defines the client to cigarworld.de to fetch data from.
@@ -41,8 +42,147 @@ func readDetailsPage(v io.ReadCloser, o *storage.Record) error {
 		err = readAttributes(n, o)
 		err = errors.Join(err, readPrice(n, o))
 		readDescription(n, o)
+		readAromaProfileCommunity(n, o)
 	}
 	return err
+}
+
+func readAromaProfileCommunity(n htmlfilter.Node, o *storage.Record) {
+	var aromaWeights []float64
+	var dataRub bool
+	var cntOfVotes int
+	for nn := range n.Find("div#tab-pane-tasting") {
+		for nnn := range nn.Find("p") {
+			if nnn.LastChild != nil {
+				s := strings.TrimSpace(nnn.LastChild.Data)
+				for i, el := range s {
+					if el == '(' {
+						var err error
+						if cntOfVotes, err = strconv.Atoi(s[i+1 : len(s)-1]); err != nil || cntOfVotes == 0 {
+							return
+						}
+						break
+					}
+				}
+			}
+			break
+		}
+
+		for nnn := range nn.Find("canvas.aromaimg") {
+			for _, att := range nnn.Attr {
+				switch att.Key {
+				case "data-content":
+					aromaWeights = readAromaWeights(att.Val)
+				case "data-rub":
+					dataRub = strings.TrimSpace(att.Val) == "t"
+				}
+			}
+			break
+		}
+		break
+	}
+
+	if len(aromaWeights) > 0 {
+		for nn := range n.Find("body") {
+			var found bool
+			for nnn := range nn.ChildNodes() {
+				if !found && nnn.DataAtom == atom.Script {
+					s := strings.TrimSpace(htmlfilter.InnerHTML(nnn))
+					if strings.Contains(s, "NameArrObj") {
+						aromaCat, aromaCatAlt := readAromaCats(s)
+						if dataRub {
+							aromaCat = aromaCatAlt
+						}
+						var w = make(map[string]float64, len(aromaWeights))
+						for i, el := range aromaWeights {
+							w[aromaCat[i]] = el
+						}
+						o.AromaProfileCommunity = &storage.AromaProfileCommunity{
+							Weights:       w,
+							NumberOfVotes: cntOfVotes,
+						}
+						found = true
+					}
+				}
+			}
+		}
+	}
+}
+
+func readAromaWeights(s string) []float64 {
+	var o = make([]float64, len(s))
+	var sum int
+	for i, v := range s {
+		var val int
+		switch v {
+		case '0':
+			val = 0
+		case '1':
+			val = 1
+		case '2':
+			val = 2
+		case '3':
+			val = 3
+		case '4':
+			val = 4
+		case '5':
+			val = 5
+		case '6':
+			val = 6
+		case '7':
+			val = 7
+		case '8':
+			val = 8
+		case '9':
+			val = 9
+		}
+		o[i] = float64(val)
+		sum += val
+	}
+	for i, v := range o {
+		o[i] = v / float64(sum)
+	}
+	return o
+}
+
+func readAromaCats(s string) (aromaCat []string, aromaCatAlt []string) {
+	s = strings.TrimSpace(s)
+	return readAromaCat(s, "AromaNamenArr"), readAromaCat(s, "AromaTabacNamenArr")
+}
+
+func readAromaCat(s string, filter string) []string {
+	var o []string
+	var atEnd bool
+	for i := 0; i < len(s); i++ {
+		switch {
+		case len(s) >= i+len(filter) && s[i:i+len(filter)] == filter:
+			i += len(filter)
+			var l, r int
+			for i < len(s) {
+				switch {
+				case s[i] == '"' && (s[i-1] == '[' || s[i-1] == ','):
+					l = i + 1
+				case s[i] == '"' && (s[i+1] == ']' || s[i+1] == ','):
+					r = i
+				case s[i] == ']':
+					atEnd = true
+				}
+				if r > l {
+					o = append(o, s[l:r])
+					l = 0
+					r = 0
+				}
+				if atEnd {
+					break
+				}
+				i++
+			}
+		}
+		if atEnd {
+			break
+		}
+	}
+	return o
 }
 
 func readDescription(n htmlfilter.Node, o *storage.Record) {

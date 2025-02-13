@@ -70,7 +70,7 @@ type Record struct {
 	// AromaProfileManufacturer Array of aroma flavours according to the data source / website.
 	AromaProfileManufacturer []string `json:"aromaProfileManufacturer,omitempty"`
 	// AromaProfileCommunity aroma flavours with their weights from 0 to 1 according to the community.
-	AromaProfileCommunity map[string]float64 `json:"aromaProfileCommunity,omitempty"`
+	AromaProfileCommunity *AromaProfileCommunity `json:"aromaProfileCommunity,omitempty"`
 
 	// Experience
 	Strength        *string `json:"strength,omitempty"`
@@ -83,6 +83,11 @@ type Record struct {
 
 	// AdditionalNotes additional info, e.g., barrel-aged
 	AdditionalNotes *string `json:"additionalNotes,omitempty"`
+}
+
+type AromaProfileCommunity struct {
+	Weights       map[string]float64 `json:"weights"`
+	NumberOfVotes int                `json:"numberOfVotes"`
 }
 
 type Writer interface {

@@ -34,6 +34,15 @@ var wantDieselCaskAgedRobusto = storage.Record{
 	BinderTobaccoVariety: pointer("San Andrés"),
 	TypeOfManufacturing:  pointer("TAM"),
 	Price:                8.9,
+	AromaProfileCommunity: &storage.AromaProfileCommunity{
+		Weights: map[string]float64{
+			//642111211257 -> sum = 33
+			"Holz": 6. / 33, "Pfeffer": 4. / 33, "Gras": 2. / 33, "Frucht": 1. / 33, "Creme": 1. / 33, "Süß": 1. / 33,
+			"Nuss": 2. / 33, "Schokolade": 1. / 33, "Kaffee": 1. / 33, "Toast": 2. / 33,
+			"Leder": 5. / 33, "Erde": 7. / 33,
+		},
+		NumberOfVotes: 1,
+	},
 }
 
 //go:embed testdata/details-my-father-cigars-limited-edition-tatuaje-la-union-2023.html
@@ -130,4 +139,34 @@ func recordsEqual(t *testing.T, want storage.Record, got storage.Record) {
 				"field %s", fieldWantT.Name)
 		}
 	}
+}
+
+func Test_readAromaCat(t *testing.T) {
+	in := `
+		    		var NameArrObj = {
+		    	AromaNamenArr: ["Holz","Pfeffer","Gras","Frucht","Creme","Süß","Nuss","Schokolade","Kaffee","Toast","Leder","Erde"],
+				AromaTabacNamenArr: ["Vanille","Süße","Erdig","Rauchig","Seifig","Fruchtig","Aromatisierung","Würze/Umami","Säure","Nussig","Grasig","Röstaromen"],
+				PropsNameArr: ["Preis/Leistung","Verarbeitung","Stärke","Rauchvolumen","Zugwiderstand","Abbrandverhalten","Aromavielfalt","Aromaintensität"],
+		    };
+
+			$(document).ready(function(){
+			    paintAroma(NameArrObj);
+			    createSchieber();
+			});
+					$('img[data-src]:not(.swiper-lazy)').unveil(100, function() {
+				$(this).on('load', function() {
+					$(this).addClass('unveiled');
+				});
+			});
+`
+	wantCat := []string{
+		"Holz", "Pfeffer", "Gras", "Frucht", "Creme", "Süß", "Nuss", "Schokolade", "Kaffee", "Toast", "Leder", "Erde",
+	}
+	wantCatAlt := []string{
+		"Vanille", "Süße", "Erdig", "Rauchig", "Seifig", "Fruchtig", "Aromatisierung",
+		"Würze/Umami", "Säure", "Nussig", "Grasig", "Röstaromen",
+	}
+	gotCat, gotCatAlt := readAromaCats(in)
+	assert.Equal(t, wantCat, gotCat)
+	assert.Equal(t, wantCatAlt, gotCatAlt)
 }
