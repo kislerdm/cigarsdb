@@ -90,7 +90,7 @@ func main() {
 }
 
 func newSource(s string, logs *slog.Logger, writer storage.Writer) (source storage.Reader, err error) {
-	c := newHTTPClient(5*time.Second, 5)
+	c := newHTTPClient(6*time.Second, 5*time.Second, 5)
 
 	switch s {
 	case "noblego":
@@ -105,6 +105,7 @@ func newSource(s string, logs *slog.Logger, writer storage.Writer) (source stora
 
 type httpClient struct {
 	InitialDelay time.Duration
+	Backoff      time.Duration
 	MaxRetries   uint8
 	attempt      uint8
 	mu           *sync.Mutex
@@ -116,9 +117,10 @@ func (h httpClient) Get(url string) (resp *http.Response, err error) {
 		if resp, err = h.c.Get(url); err == nil {
 			if resp.StatusCode == http.StatusTooManyRequests {
 				h.mu.Lock()
+				delay := time.Duration(h.InitialDelay.Nanoseconds() + h.Backoff.Nanoseconds()*int64(h.attempt))
 				h.attempt++
 				h.mu.Unlock()
-				time.Sleep(h.InitialDelay)
+				time.Sleep(delay)
 
 			} else {
 				h.mu.Lock()
@@ -131,9 +133,10 @@ func (h httpClient) Get(url string) (resp *http.Response, err error) {
 	return resp, err
 }
 
-func newHTTPClient(initialDelay time.Duration, maxRetries uint8) httpClient {
+func newHTTPClient(initialDelay time.Duration, backoff time.Duration, maxRetries uint8) httpClient {
 	return httpClient{
 		InitialDelay: initialDelay,
+		Backoff:      backoff,
 		MaxRetries:   maxRetries,
 		mu:           new(sync.Mutex),
 		c:            http.DefaultClient,
