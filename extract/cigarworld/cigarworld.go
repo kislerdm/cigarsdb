@@ -1,6 +1,7 @@
 package cigarworld
 
 import (
+	"bytes"
 	"cigarsdb/extract"
 	"cigarsdb/htmlfilter"
 	"cigarsdb/storage"
@@ -8,13 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/davecgh/go-spew/spew"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -36,7 +35,7 @@ func (c Client) Read(_ context.Context, id string) (r storage.Record, err error)
 	return r, err
 }
 
-func readDetailsPage(v io.ReadCloser, o *storage.Record) error {
+func readDetailsPage(v io.Reader, o *storage.Record) error {
 	var err error
 	var doc *html.Node
 	if doc, err = html.Parse(v); err == nil {
@@ -215,7 +214,7 @@ func readPrice(n htmlfilter.Node, o *storage.Record) error {
 	if err == nil {
 		for nn := range n.Find("span.einheitlabel") {
 			if nn.FirstChild != nil {
-				cntUnitsStr := strings.TrimSuffix(strings.TrimSpace(nn.FirstChild.Data), "er")
+				cntUnitsStr := strings.SplitN(strings.TrimSpace(nn.FirstChild.Data), "er", 2)[0]
 				var cntUnits int
 				if cntUnits, err = strconv.Atoi(cntUnitsStr); err == nil {
 					if cntUnits > 0 {
@@ -402,50 +401,19 @@ func readName(n htmlfilter.Node) string {
 	return s
 }
 
-type source struct {
-	Title   string
-	URLPath string
-}
-
-func (v source) Exclude() bool {
-	filters := map[string]struct{}{"humidor": {}, "samples": {}, "jar": {}, "kiste": {}, "set": {}}
-	var exclude bool
-	s := strings.ToLower(v.URLPath)
-	for filter := range filters {
-		if ok := strings.Contains(s, filter); ok {
-			exclude = ok
-			break
-		}
-	}
-	return exclude
-}
-
-// IsAggregate indicates if the page describes the Brand and the product line, and includes the links to individual cigar.
-func (v source) IsAggregate(aggregateGroups map[string]struct{}) bool {
-	var ok bool
-	for aggregatePath := range aggregateGroups {
-		if strings.HasPrefix(v.URLPath, aggregatePath) {
-			ok = true
-			break
-		}
-	}
-	return ok
-}
+const baseURL = "https://www.cigarworld.de"
 
 func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record, nextPage uint, err error) {
-	const baseURL = "https://www.cigarworld.de"
-
 	var resp *http.Response
 
 	// read root page to extract the URL for the given page
 	var (
-		pages      map[string]string
-		geoFilters map[string]struct{}
-		pageQuery  string
+		pages     map[string]string
+		pageQuery string
 	)
 	resp, err = c.HTTPClient.Get(baseURL + "/zigarren")
 	if err == nil {
-		pages, geoFilters, err = newPaginator(resp.Body)
+		pages, err = newPaginator(resp.Body)
 		_ = resp.Body.Close()
 		if err == nil {
 			var ok bool
@@ -454,84 +422,22 @@ func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record,
 			}
 		}
 	}
+
 	// read the urls to the Brands, or items present on the given page
-	var sources []source
+	var candidateURLPaths []string
 	if err == nil {
 		if resp, err = c.HTTPClient.Get(fmt.Sprintf("%s/zigarren?%s", baseURL, pageQuery)); err == nil {
-			if u, er := newSources(resp.Body); er == nil {
-				for _, el := range u {
-					if !el.Exclude() {
-						sources = append(sources, el)
-					}
-				}
-			} else {
-				err = er
-			}
+			candidateURLPaths, err = newCandidateURLPaths(resp.Body)
 			_ = resp.Body.Close()
 		}
 	}
 
-	// extract the urls to the items
-	var urlsPath []string
+	// extract the records
 	if err == nil {
-		maxN := len(sources)
-		urlsPath = make([]string, 0, maxN)
-		var flags = make(chan struct{}, maxN)
-		var mu = new(sync.Mutex)
-		for _, s := range sources {
-			go func() {
-				mu.Lock()
-				switch s.IsAggregate(geoFilters) {
-				case false:
-					urlsPath = append(urlsPath, s.URLPath)
-
-				case true:
-					url := baseURL + s.URLPath
-					if u, er := readURLsOnAggregatePage(c.HTTPClient, url); er == nil {
-						for _, el := range u {
-							urlsPath = append(urlsPath, el)
-						}
-					} else {
-						err = errors.Join(err,
-							fmt.Errorf("error reading urls from the aggregate page %s: %w", url, er))
-					}
-				}
-				mu.Unlock()
-				flags <- struct{}{}
-				log.Printf("ended for %s\n", s.URLPath)
-			}()
-		}
-		for maxN > 0 {
-			<-flags
-			maxN--
-		}
+		r, err = c.extractRecords(ctx, candidateURLPaths)
 	}
 
-	// fetch the records
-	if err == nil {
-		maxN := len(urlsPath)
-		spew.Dump(maxN)
-		var flags = make(chan struct{}, maxN)
-		var mu = new(sync.Mutex)
-		for _, el := range urlsPath {
-			go func() {
-				mu.Lock()
-				url := baseURL + el
-				if record, er := c.Read(ctx, url); er == nil {
-					r = append(r, record)
-				} else {
-					err = errors.Join(err, fmt.Errorf("error fetching record from %s: %w", url, er))
-				}
-				mu.Unlock()
-				flags <- struct{}{}
-			}()
-		}
-		for maxN > 0 {
-			<-flags
-			maxN--
-		}
-	}
-
+	// increment paginator
 	if err == nil {
 		if _, ok := pages[fmt.Sprintf("%d", page)]; ok {
 			nextPage = page + 1
@@ -541,17 +447,99 @@ func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record,
 	return r, nextPage, err
 }
 
-func readURLsOnAggregatePage(c extract.HTTPClient, url string) (urls []string, err error) {
-	var resp *http.Response
-	if resp, err = c.Get(url); err == nil {
-		defer func() { _ = resp.Body.Close() }()
-		var n *html.Node
-		if n, err = html.Parse(resp.Body); err == nil {
-			nn := htmlfilter.Node{Node: n}
-			for nn = range nn.Find("a.DetailVariant-col.DetailVariant-data") {
-				for _, att := range nn.Attr {
-					if att.Key == "href" {
-						urls = append(urls, att.Val)
+func (c Client) extractRecords(ctx context.Context, candidateURLPaths []string) (r []storage.Record, err error) {
+	var wg = new(sync.WaitGroup)
+	var mu = new(sync.Mutex)
+	const maxGoroutines = 70
+	var sem = make(chan struct{}, maxGoroutines)
+
+	for _, s := range candidateURLPaths {
+		wg.Add(1)
+		sem <- struct{}{}
+
+		go func(wg *sync.WaitGroup) {
+			defer func() {
+				<-sem
+				wg.Done()
+			}()
+			candidateURL := baseURL + s
+			resp, er := c.HTTPClient.Get(candidateURL)
+			if er != nil {
+				err = errors.Join(err, fmt.Errorf("error fetching %s: %w", candidateURL, er))
+				return
+			}
+
+			body, er := io.ReadAll(resp.Body)
+			if er != nil {
+				err = errors.Join(err, fmt.Errorf("error reading data from %s: %w", candidateURL, er))
+				return
+			}
+			_ = resp.Body.Close()
+
+			u, er := extractURLs(body)
+			if er != nil {
+				err = errors.Join(err, fmt.Errorf("could not process the candidate page: %w", er))
+				return
+			}
+
+			switch len(u) {
+			case 0:
+				var rec storage.Record
+				er := readDetailsPage(bytes.NewReader(body), &rec)
+				mu.Lock()
+				switch er {
+				case nil:
+					r = append(r, rec)
+				default:
+					err = errors.Join(err, fmt.Errorf("failed to extract record from %s: %w", candidateURL, er))
+				}
+				mu.Unlock()
+
+			default:
+				u = filterBulkURLs(u)
+				for _, url := range u {
+					wg.Add(1)
+					sem <- struct{}{}
+					go func(wg *sync.WaitGroup) {
+						defer func() {
+							<-sem
+							wg.Done()
+						}()
+
+						id := baseURL + url
+						rec, er := c.Read(ctx, id)
+						mu.Lock()
+						switch er {
+						case nil:
+							r = append(r, rec)
+
+						default:
+							err = errors.Join(err, fmt.Errorf("failed to extract record from %s: %w", url, er))
+						}
+						mu.Unlock()
+					}(wg)
+				}
+			}
+		}(wg)
+	}
+
+	wg.Wait()
+	return r, err
+}
+
+func extractURLs(v []byte) (urls []string, err error) {
+	var n *html.Node
+	if n, err = html.Parse(bytes.NewReader(v)); err == nil {
+		nn := htmlfilter.Node{Node: n}
+		for nnn := range nn.Find("div.tab-pane") {
+			for ul := range nnn.Find("ul.DetailVariant-list") {
+				for li := range ul.Find("li.DetailVariant") {
+					for a := range li.Find("a.DetailVariant-col.DetailVariant-data") {
+						for _, att := range a.Attr {
+							if att.Key == "href" {
+								urls = append(urls, att.Val)
+							}
+						}
 					}
 				}
 			}
@@ -560,23 +548,30 @@ func readURLsOnAggregatePage(c extract.HTTPClient, url string) (urls []string, e
 	return urls, err
 }
 
-func newSources(v io.Reader) (o []source, err error) {
+func filterBulkURLs(v []string) []string {
+	filters := map[string]struct{}{"humidor": {}, "samples": {}, "jar": {}, "kiste": {}, "set": {}}
+	var o = make([]string, 0, len(v))
+	for _, el := range v {
+		if _, toFilter := filters[el]; !toFilter {
+			o = append(o, el)
+		}
+	}
+	return o
+}
+
+func newCandidateURLPaths(v io.Reader) (o []string, err error) {
 	var n *html.Node
 	if n, err = html.Parse(v); err == nil {
 		nn := htmlfilter.Node{Node: n}
 		for nn = range nn.Find("div.ws-g.search-result") {
 			for nnn := range nn.Find("div.search-result-item") {
 				for a := range nnn.Find("a.search-result-item-inner") {
-					s := source{}
 					for _, att := range a.Attr {
 						switch att.Key {
 						case "href":
-							s.URLPath = att.Val
-						case "title":
-							s.Title = att.Val
+							o = append(o, att.Val)
 						}
 					}
-					o = append(o, s)
 				}
 			}
 		}
@@ -584,7 +579,7 @@ func newSources(v io.Reader) (o []source, err error) {
 	return o, err
 }
 
-func newPaginator(v io.Reader) (o map[string]string, geoFilters map[string]struct{}, err error) {
+func newPaginator(v io.Reader) (o map[string]string, err error) {
 	var n *html.Node
 	if n, err = html.Parse(v); err == nil {
 		nn := htmlfilter.Node{Node: n}
@@ -612,36 +607,6 @@ func newPaginator(v io.Reader) (o map[string]string, geoFilters map[string]struc
 				}
 			}
 		}
-
-		geoFilters = make(map[string]struct{})
-		var found bool
-		for nnn := range nn.Find("li.filter-item") {
-			if found {
-				break
-			}
-			for c := range nnn.ChildNodes() {
-				if c.DataAtom == atom.A {
-					for _, att := range c.Attr {
-						if att.Key == "href" && att.Val == "#filter-wgr" {
-							for el := range nnn.Find("li.ws-u-1.nobr") {
-								for c := range el.ChildNodes() {
-									if c.DataAtom == atom.A {
-										for _, att := range c.Attr {
-											if att.Key == "href" {
-												geoFilters[att.Val] = struct{}{}
-											}
-										}
-										break
-									}
-								}
-							}
-							found = true
-							break
-						}
-					}
-				}
-			}
-		}
 	}
-	return o, geoFilters, err
+	return o, err
 }

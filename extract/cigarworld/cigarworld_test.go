@@ -170,3 +170,12 @@ func Test_readAromaCat(t *testing.T) {
 	assert.Equal(t, wantCat, gotCat)
 	assert.Equal(t, wantCatAlt, gotCatAlt)
 }
+
+//go:embed testdata/aggregate-page.html
+var aggregatePage []byte
+
+func Test_extractURLs(t *testing.T) {
+	gotUrls, err := extractURLs(aggregatePage)
+	assert.NoError(t, err)
+	assert.Len(t, gotUrls, 27)
+}
