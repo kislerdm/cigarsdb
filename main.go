@@ -57,7 +57,7 @@ func main() {
 		return
 	}
 
-	source, err := newSource(s, destination)
+	source, err := newSource(s, logs, destination)
 	if err != nil {
 		logs.Error("could not initialise the source fetching client", slog.Any("error", err))
 		return
@@ -77,7 +77,6 @@ func main() {
 		if err != nil {
 			logs.Error("error persisting the data", slog.Any("error", err),
 				slog.Uint64("page", uint64(page)))
-			return
 		}
 
 		logs.Info("end fetching", slog.Uint64("page", uint64(page)))
@@ -90,14 +89,14 @@ func main() {
 	}
 }
 
-func newSource(s string, writer storage.Writer) (source storage.Reader, err error) {
-	c := newHTTPClient(10*time.Second, 5)
+func newSource(s string, logs *slog.Logger, writer storage.Writer) (source storage.Reader, err error) {
+	c := newHTTPClient(5*time.Second, 5)
 
 	switch s {
 	case "noblego":
 		source = noblego.Client{HTTPClient: c}
 	case "cigarworld":
-		source = cigarworld.Client{HTTPClient: c, Dumper: writer}
+		source = cigarworld.Client{HTTPClient: c, Dumper: writer, Logs: logs}
 	default:
 		err = fmt.Errorf("data source is unknown")
 	}
