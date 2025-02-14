@@ -71,6 +71,7 @@ var wantMyFatherCigarsLimitedEditionTatuajeLaUnion = storage.Record{
 	TypeOfManufacturing:   pointer("TAM"),
 	Price:                 87.3,
 	Details: map[string]string{
+		//nolint:misspell // Kollaboration is a correct German word
 		"description": "<p>Die exklusive<strong> Kollaboration</strong> zwischen " +
 			"<a href=\"/my-father-cigars\" target=\"_self\"><strong>My Father Cigars</strong>" +
 			"</a> und <a href=\"/tatuaje\" target=\"_self\"><strong>Tatuaje</strong>" +

@@ -596,7 +596,6 @@ func newCandidateURLPaths(v io.Reader, filterFn func(s string) bool) (o []string
 						switch att.Key {
 						case "href":
 							u = att.Val
-							break
 						}
 					}
 

@@ -122,7 +122,7 @@ func (h httpClient) Get(url string) (resp *http.Response, err error) {
 
 			} else {
 				h.mu.Lock()
-				h.attempt = 0
+				h.attempt = 0 //nolint:staticcheck //zeroed value to restart counter after the first OK response
 				h.mu.Unlock()
 				break
 			}
