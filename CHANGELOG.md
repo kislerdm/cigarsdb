@@ -1,3 +1,10 @@
+## 0.4.0 - 2025-02-15
+
+### Added
+
+- Added package `extract/cigarworld` to extract data from cigarworld.de.
+- Added data mini-batching to persist data between sink of the data from a single page. 
+
 ## 0.3.0 - 2025-02-12
 
 ### Added
