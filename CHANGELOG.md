@@ -1,3 +1,13 @@
+## 0.4.1 - 2025-02-15
+
+### Added
+
+- Added the dynamic backoff calculation to the http client.
+
+### Fixed
+
+- Fixed the floating point rounding when storing data after parsing string to float64 and converting cm to mm.
+
 ## 0.4.0 - 2025-02-15
 
 ### Added
