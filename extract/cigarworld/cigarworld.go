@@ -370,11 +370,7 @@ func setAttribute(o *storage.Record, k string, v string) error {
 			o.LengthInch = val
 
 		case strings.HasSuffix(v, "cm"):
-			// fix rounding
-			// e.g. 18.42 -> 184.2000...02
-			tmp := int(val * 100)
-			val = float64(tmp/10) + float64(tmp-(tmp/10)*10)/10
-			o.Length = val
+			o.Length = cm2mm(val)
 		}
 
 	case "Ring / Diameter", "Ringmaß / Durchmesser":
@@ -386,13 +382,20 @@ func setAttribute(o *storage.Record, k string, v string) error {
 		}
 		switch {
 		case strings.HasSuffix(v, "cm"):
-			o.Diameter = val * 10
+			o.Diameter = cm2mm(val)
 
 		default:
 			o.Ring = val
 		}
 	}
 	return err
+}
+
+// fix rounding
+// e.g. 18.42 -> 184.2 instead of 184.2000...02
+func cm2mm(val float64) float64 {
+	tmp := int(val * 100)
+	return float64(tmp/10) + float64(tmp-(tmp/10)*10)/10
 }
 
 func readFloat(v string) (o float64, err error) {
