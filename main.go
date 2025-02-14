@@ -11,6 +11,8 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"sync"
+	"time"
 )
 
 var version = "dev"
@@ -49,15 +51,15 @@ func main() {
 		Level: slog.LevelInfo,
 	}))
 
-	source, err := newSource(s)
-	if err != nil {
-		logs.Error("could not initialise the source fetching client", slog.Any("error", err))
-		return
-	}
-
 	destination, err := fs.NewClient(dumpDir)
 	if err != nil {
 		logs.Error("could not init the writer", slog.Any("error", err))
+		return
+	}
+
+	source, err := newSource(s, destination)
+	if err != nil {
+		logs.Error("could not initialise the source fetching client", slog.Any("error", err))
 		return
 	}
 
@@ -88,15 +90,53 @@ func main() {
 	}
 }
 
-func newSource(s string) (source storage.Reader, err error) {
-	c := http.DefaultClient
+func newSource(s string, writer storage.Writer) (source storage.Reader, err error) {
+	c := newHTTPClient(10*time.Second, 5)
+
 	switch s {
 	case "noblego":
 		source = noblego.Client{HTTPClient: c}
 	case "cigarworld":
-		source = cigarworld.Client{HTTPClient: c}
+		source = cigarworld.Client{HTTPClient: c, Dumper: writer}
 	default:
 		err = fmt.Errorf("data source is unknown")
 	}
 	return source, err
+}
+
+type httpClient struct {
+	InitialDelay time.Duration
+	MaxRetries   uint8
+	attempt      uint8
+	mu           *sync.Mutex
+	c            *http.Client
+}
+
+func (h httpClient) Get(url string) (resp *http.Response, err error) {
+	for h.attempt < h.MaxRetries {
+		if resp, err = h.c.Get(url); err == nil {
+			if resp.StatusCode == http.StatusTooManyRequests {
+				h.mu.Lock()
+				h.attempt++
+				h.mu.Unlock()
+				time.Sleep(h.InitialDelay)
+
+			} else {
+				h.mu.Lock()
+				h.attempt = 0
+				h.mu.Unlock()
+				break
+			}
+		}
+	}
+	return resp, err
+}
+
+func newHTTPClient(initialDelay time.Duration, maxRetries uint8) httpClient {
+	return httpClient{
+		InitialDelay: initialDelay,
+		MaxRetries:   maxRetries,
+		mu:           new(sync.Mutex),
+		c:            http.DefaultClient,
+	}
 }

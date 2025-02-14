@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -21,6 +22,7 @@ import (
 // Client defines the client to cigarworld.de to fetch data from.
 type Client struct {
 	HTTPClient extract.HTTPClient
+	Dumper     storage.Writer
 }
 
 func (c Client) Read(_ context.Context, id string) (r storage.Record, err error) {
@@ -215,6 +217,9 @@ func readPrice(n htmlfilter.Node, o *storage.Record) error {
 		for nn := range n.Find("span.einheitlabel") {
 			if nn.FirstChild != nil {
 				cntUnitsStr := strings.SplitN(strings.TrimSpace(nn.FirstChild.Data), "er", 2)[0]
+				cntUnitsStr = strings.SplitN(cntUnitsStr, " ", 2)[0]
+				cntUnitsStr = strings.TrimSpace(cntUnitsStr)
+
 				var cntUnits int
 				if cntUnits, err = strconv.Atoi(cntUnitsStr); err == nil {
 					if cntUnits > 0 {
@@ -349,33 +354,44 @@ func setAttribute(o *storage.Record, k string, v string) error {
 		o.WrapperProperty = &v
 
 	case "Length", "Länge":
-		s := strings.SplitN(v, " ", 2)[0]
-		switch {
-		case strings.HasSuffix(v, "inches"):
-			o.LengthInch, err = strconv.ParseFloat(s, 64)
-		case strings.HasSuffix(v, "cm"):
-			if o.Length, err = strconv.ParseFloat(s, 64); err == nil {
-				// fix rounding
-				// e.g. 18.42 -> 184.2000...02
-				// FIXME(?) can it be done more efficiently?
-				tmp := int(o.Length * 100)
-				o.Length = float64(tmp/10) + float64(tmp-(tmp/10)*10)/10
+		var val float64
+		if val, err = readFloat(v); err == nil {
+			switch {
+			case strings.HasSuffix(v, "inches"):
+				o.LengthInch = val
+
+			case strings.HasSuffix(v, "cm"):
+				o.Length = val
 			}
 		}
 
 	case "Ring / Diameter", "Ringmaß / Durchmesser":
-		s := strings.SplitN(v, " ", 2)[0]
-		switch {
-		case strings.HasSuffix(v, "cm"):
-			if o.Diameter, err = strconv.ParseFloat(s, 64); err == nil {
-				tmp := int(o.Diameter * 100)
-				o.Diameter = float64(tmp/10) + float64(tmp-(tmp/10)*10)/10
+		var val float64
+		if val, err = readFloat(v); err == nil {
+			switch {
+			case strings.HasSuffix(v, "inches"):
+				o.Ring = int(val)
+
+			case strings.HasSuffix(v, "cm"):
+				o.Diameter = val
 			}
-		default:
-			o.Ring, err = strconv.Atoi(s)
 		}
 	}
 	return err
+}
+
+func readFloat(v string) (o float64, err error) {
+	s := strings.SplitN(v, " ", 2)[0]
+	s = strings.TrimSpace(s)
+	s = strings.Replace(s, ",", ".", -1)
+	if o, err = strconv.ParseFloat(s, 64); err == nil {
+		// fix rounding
+		// e.g. 18.42 -> 184.2000...02
+		// FIXME(?) can it be done more efficiently?
+		tmp := int(o * 100)
+		o = float64(tmp/10) + float64(tmp-(tmp/10)*10)/10
+	}
+	return o, err
 }
 
 func splitCommaseparatedVals(v string) []string {
@@ -427,7 +443,7 @@ func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record,
 	var candidateURLPaths []string
 	if err == nil {
 		if resp, err = c.HTTPClient.Get(fmt.Sprintf("%s/zigarren?%s", baseURL, pageQuery)); err == nil {
-			candidateURLPaths, err = newCandidateURLPaths(resp.Body)
+			candidateURLPaths, err = newCandidateURLPaths(resp.Body, skipURL)
 			_ = resp.Body.Close()
 		}
 	}
@@ -447,83 +463,77 @@ func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record,
 	return r, nextPage, err
 }
 
-func (c Client) extractRecords(ctx context.Context, candidateURLPaths []string) (r []storage.Record, err error) {
-	var wg = new(sync.WaitGroup)
+func (c Client) extractRecords(ctx context.Context, candidateURLPaths []string) (
+	r []storage.Record, err error) {
 	var mu = new(sync.Mutex)
-	const maxGoroutines = 70
-	var sem = make(chan struct{}, maxGoroutines)
-
 	for _, s := range candidateURLPaths {
-		wg.Add(1)
-		sem <- struct{}{}
+		candidateURL := baseURL + s
 
-		go func(wg *sync.WaitGroup) {
-			defer func() {
-				<-sem
-				wg.Done()
-			}()
-			candidateURL := baseURL + s
-			resp, er := c.HTTPClient.Get(candidateURL)
-			if er != nil {
-				err = errors.Join(err, fmt.Errorf("error fetching %s: %w", candidateURL, er))
-				return
-			}
+		log.Printf("read %s\n", candidateURL)
 
-			body, er := io.ReadAll(resp.Body)
-			if er != nil {
-				err = errors.Join(err, fmt.Errorf("error reading data from %s: %w", candidateURL, er))
-				return
-			}
-			_ = resp.Body.Close()
+		resp, er := c.HTTPClient.Get(candidateURL)
+		if er != nil {
+			err = errors.Join(err, fmt.Errorf("error fetching %s: %w", candidateURL, er))
+			return
+		}
 
-			u, er := extractURLs(body)
-			if er != nil {
-				err = errors.Join(err, fmt.Errorf("could not process the candidate page: %w", er))
-				return
-			}
+		body, er := io.ReadAll(resp.Body)
+		if er != nil {
+			err = errors.Join(err, fmt.Errorf("error reading data from %s: %w", candidateURL, er))
+			return
+		}
+		_ = resp.Body.Close()
 
-			switch len(u) {
-			case 0:
-				var rec storage.Record
-				er := readDetailsPage(bytes.NewReader(body), &rec)
-				mu.Lock()
-				switch er {
-				case nil:
-					r = append(r, rec)
-				default:
-					err = errors.Join(err, fmt.Errorf("failed to extract record from %s: %w", candidateURL, er))
-				}
-				mu.Unlock()
+		u, er := extractURLs(body)
+		if er != nil {
+			err = errors.Join(err, fmt.Errorf("could not process the candidate page: %w", er))
+			return
+		}
+		u = filterBulkURLs(u)
 
+		switch len(u) {
+		case 0:
+			var rec storage.Record
+			er := readDetailsPage(bytes.NewReader(body), &rec)
+			switch er {
+			case nil:
+				r = append(r, rec)
 			default:
-				u = filterBulkURLs(u)
-				for _, url := range u {
-					wg.Add(1)
-					sem <- struct{}{}
-					go func(wg *sync.WaitGroup) {
-						defer func() {
-							<-sem
-							wg.Done()
-						}()
-
-						id := baseURL + url
-						rec, er := c.Read(ctx, id)
-						mu.Lock()
-						switch er {
-						case nil:
-							r = append(r, rec)
-
-						default:
-							err = errors.Join(err, fmt.Errorf("failed to extract record from %s: %w", url, er))
-						}
-						mu.Unlock()
-					}(wg)
-				}
+				err = errors.Join(err, fmt.Errorf("failed to extract record from %s: %w", candidateURL, er))
 			}
-		}(wg)
-	}
 
-	wg.Wait()
+		default:
+			maxN := len(u)
+			var recs = make([]storage.Record, maxN)
+			var flags = make(chan struct{}, maxN)
+			for i, url := range u {
+				go func() {
+					id := baseURL + url
+					var er error
+					if recs[i], er = c.Read(ctx, id); er != nil {
+						mu.Lock()
+						err = errors.Join(err, fmt.Errorf("failed to extract record from %s: %w", id, er))
+						mu.Unlock()
+					} else {
+						if c.Dumper != nil {
+							_, _ = c.Dumper.Write(ctx, recs[i])
+						}
+					}
+					flags <- struct{}{}
+				}()
+			}
+			for maxN > 0 {
+				<-flags
+				maxN--
+			}
+			if err == nil {
+				r = append(r, recs...)
+			}
+		}
+	}
+	if err != nil {
+		r = nil
+	}
 	return r, err
 }
 
@@ -549,32 +559,50 @@ func extractURLs(v []byte) (urls []string, err error) {
 }
 
 func filterBulkURLs(v []string) []string {
-	filters := map[string]struct{}{"humidor": {}, "samples": {}, "jar": {}, "kiste": {}, "set": {}}
 	var o = make([]string, 0, len(v))
 	for _, el := range v {
-		if _, toFilter := filters[el]; !toFilter {
+		if !skipURL(el) {
 			o = append(o, el)
 		}
 	}
 	return o
 }
 
-func newCandidateURLPaths(v io.Reader) (o []string, err error) {
+func skipURL(s string) (skip bool) {
+	var filters = map[string]struct{}{"humidor": {}, "sample": {}, "jar": {}, "kiste": {}, "set": {}, "dose": {}}
+	for filter := range filters {
+		if skip = strings.Contains(s, filter); skip {
+			break
+		}
+	}
+	return skip
+}
+
+func newCandidateURLPaths(v io.Reader, filterFn func(s string) bool) (o []string, err error) {
 	var n *html.Node
 	if n, err = html.Parse(v); err == nil {
 		nn := htmlfilter.Node{Node: n}
 		for nn = range nn.Find("div.ws-g.search-result") {
 			for nnn := range nn.Find("div.search-result-item") {
 				for a := range nnn.Find("a.search-result-item-inner") {
+					var u string
 					for _, att := range a.Attr {
 						switch att.Key {
 						case "href":
-							o = append(o, att.Val)
+							u = att.Val
+							break
 						}
+					}
+
+					if filterFn != nil && !filterFn(u) {
+						o = append(o, u)
 					}
 				}
 			}
 		}
+	}
+	if err != nil {
+		o = nil
 	}
 	return o, err
 }

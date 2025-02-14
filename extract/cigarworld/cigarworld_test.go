@@ -3,14 +3,17 @@ package cigarworld
 import (
 	"bytes"
 	"cigarsdb/extract"
+	"cigarsdb/htmlfilter"
 	"cigarsdb/storage"
 	"context"
 	_ "embed"
 	"io"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/html"
 )
 
 //go:embed testdata/details-diesel-cask-aged-robusto-90016191_48509.html
@@ -178,4 +181,83 @@ func Test_extractURLs(t *testing.T) {
 	gotUrls, err := extractURLs(aggregatePage)
 	assert.NoError(t, err)
 	assert.Len(t, gotUrls, 27)
+}
+
+func Test_readPrice(t *testing.T) {
+	in := `<div class="ws-g ws-c DetailOrderbox" data-addtocart="loader">
+			<div class="ws-u-1">
+                				<h4 class="h-alt h-alt-nm d-none d-lg-block nobr">Chicos</h4>
+
+                
+				
+				
+				<div class="ws-g DetailOrderbox-row DetailOrderbox--titlerow mt-2 mt-lg-3">
+					<div class="ws-u-4-24 DetailOrderbox-col DetailOrderbox-image DetailOrderbox--title">&nbsp;</div>
+					<div class="ws-u-7-24 DetailOrderbox-col DetailOrderbox-price DetailOrderbox--title">Preis</div>
+					<div class="ws-u-5-24 DetailOrderbox-col DetailOrderbox-quantity DetailOrderbox--title">Menge</div>
+					<div class="ws-u-8-24 DetailOrderbox-col DetailOrderbox-unit DetailOrderbox--title">Einheit</div>
+				</div>
+				
+
+<form class="ws-form" method="post" action="/warenkorb/show" data-ajaction="/ajax/warenkorb/show" data-addtocart="form">
+        <div class="ws-g DetailOrderbox-row">
+        <div class="ws-u-4-24 DetailOrderbox-col DetailOrderbox-image" style="position: relative;">
+        	              
+        </div>
+        <div class="ws-u-7-24 DetailOrderbox-col DetailOrderbox-price">
+        	<span class="preis"><span data-eurval="1.60" data-curiso="EUR">€1.60</span></span>                        <nobr><span class="grundbetrag"></span></nobr>        </div>
+        <div class="ws-u-5-24 DetailOrderbox-col DetailOrderbox-quantity">
+                                </div>
+        <div class="ws-u-8-24 DetailOrderbox-col DetailOrderbox-unit">
+            <label for="wk_anzahl_auswahl_1" title="Ausverkauft">
+                <input type="hidden" name="wk_einheit[1]" value="1"><span class="einheitlabel avail_4" title="Nicht Lieferbar">1&nbsp; Stk.</span>
+            </label>
+                        <div><span class="avail_4">Ausverkauft</span></div>        </div>
+    </div>
+
+        <div class="ws-g DetailOrderbox-row">
+        <div class="ws-u-4-24 DetailOrderbox-col DetailOrderbox-image" style="position: relative;">
+        	              
+        </div>
+        <div class="ws-u-7-24 DetailOrderbox-col DetailOrderbox-price">
+        	<span class="preis"><span data-eurval="38.80" data-curiso="EUR">€38.80</span><del><span data-eurval="40.00" data-curiso="EUR">€40.00</span></del></span>                        <nobr><span class="grundbetrag"></span></nobr>        </div>
+        <div class="ws-u-5-24 DetailOrderbox-col DetailOrderbox-quantity">
+                                </div>
+        <div class="ws-u-8-24 DetailOrderbox-col DetailOrderbox-unit">
+            <label for="wk_anzahl_auswahl_2" title="Ausverkauft">
+                <input type="hidden" name="wk_einheit[2]" value="2"><span class="einheitlabel avail_4" title="Nicht Lieferbar">25&nbsp; Stk.</span>
+            </label>
+            <small style="color: #666">inkl. 3% Rabatt</small>            <div><span class="avail_4">Ausverkauft</span></div>        </div>
+    </div>
+
+    
+        
+    
+    <div class="ws-g mt-3">
+        <div class="ws-u-1 text-right" style="font-size: 0.8em; opacity: 0.8;">Preise inkl. MwSt., ggf. zzgl. <a href="/service/versandkosten"><u>Versand</u></a></div>
+    </div>
+    
+    <div class="ws-g DetailOrderbox-buttons mt-3">
+
+        <div class="ws-u-1 ws-u-md-1-2 DetailOrderbox-addtocart">
+                    </div>
+        
+                    <div class="ws-u-0 ws-u-md-1-2 mt-2 mt-lg-0 DetailOrderbox-addtowatchlist">&nbsp;</div>
+                
+    </div>
+
+</form>
+
+
+
+
+			</div>
+		</div>`
+	n, err := html.Parse(strings.NewReader(in))
+	assert.NoError(t, err)
+
+	var got storage.Record
+	assert.NoError(t, readPrice(htmlfilter.Node{Node: n}, &got))
+	wantPrice := 1.6
+	assert.Equal(t, wantPrice, got.Price)
 }
