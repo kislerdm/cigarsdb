@@ -21,7 +21,7 @@ type Record struct {
 
 	// Shape
 	Diameter   float64 `json:"diameter_mm"`
-	Ring       int     `json:"ring"`
+	Ring       float64 `json:"ring"`
 	Length     float64 `json:"length_mm"`
 	LengthInch float64 `json:"length_inch"`
 	// Format the cigar's format, e.g., robusto.

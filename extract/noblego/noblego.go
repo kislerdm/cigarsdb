@@ -228,7 +228,7 @@ func readAttributes(n htmlfilter.Node, o *storage.Record) error {
 					}
 				case "product-attribute-cig_gauge":
 					if v := dataFromFirstSpanChild(val); v != nil {
-						o.Ring, er = strconv.Atoi(*v)
+						o.Ring, er = strconv.ParseFloat(*v, 64)
 					}
 				case "product-attribute-cig_length":
 					if v := dataFromFirstSpanChild(val); v != nil {

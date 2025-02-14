@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,21 +24,22 @@ import (
 type Client struct {
 	HTTPClient extract.HTTPClient
 	Dumper     storage.Writer
+	Logs       *slog.Logger
 }
 
 func (c Client) Read(_ context.Context, id string) (r storage.Record, err error) {
 	var resp *http.Response
 	if resp, err = c.HTTPClient.Get(id); err == nil {
-		err = readDetailsPage(resp.Body, &r)
+		r.URL = id
+		err = c.readDetailsPage(resp.Body, &r)
 		_ = resp.Body.Close()
-		if err == nil {
-			r.URL = id
-		}
+	} else {
+		r = storage.Record{}
 	}
 	return r, err
 }
 
-func readDetailsPage(v io.Reader, o *storage.Record) error {
+func (c Client) readDetailsPage(v io.Reader, o *storage.Record) error {
 	var err error
 	var doc *html.Node
 	if doc, err = html.Parse(v); err == nil {
@@ -357,27 +359,37 @@ func setAttribute(o *storage.Record, k string, v string) error {
 		o.WrapperProperty = &v
 
 	case "Length", "Länge":
+		// one of may be missing
 		var val float64
-		if val, err = readFloat(v); err == nil {
-			switch {
-			case strings.HasSuffix(v, "inches"):
-				o.LengthInch = val
+		if val, err = readFloat(v); err != nil {
+			err = nil
+			log.Printf("error parsing value %s of the attribute %s\n", v, k)
+		}
+		switch {
+		case strings.HasSuffix(v, "inches"):
+			o.LengthInch = val
 
-			case strings.HasSuffix(v, "cm"):
-				o.Length = val
-			}
+		case strings.HasSuffix(v, "cm"):
+			// fix rounding
+			// e.g. 18.42 -> 184.2000...02
+			tmp := int(val * 100)
+			val = float64(tmp/10) + float64(tmp-(tmp/10)*10)/10
+			o.Length = val
 		}
 
 	case "Ring / Diameter", "Ringmaß / Durchmesser":
+		// one of may be missing
 		var val float64
-		if val, err = readFloat(v); err == nil {
-			switch {
-			case strings.HasSuffix(v, "inches"):
-				o.Ring = int(val)
+		if val, err = readFloat(v); err != nil {
+			err = nil
+			log.Printf("error parsing value %s of the attribute %s\n", v, k)
+		}
+		switch {
+		case strings.HasSuffix(v, "cm"):
+			o.Diameter = val * 10
 
-			case strings.HasSuffix(v, "cm"):
-				o.Diameter = val
-			}
+		default:
+			o.Ring = val
 		}
 	}
 	return err
@@ -387,14 +399,7 @@ func readFloat(v string) (o float64, err error) {
 	s := strings.SplitN(v, " ", 2)[0]
 	s = strings.TrimSpace(s)
 	s = strings.Replace(s, ",", ".", -1)
-	if o, err = strconv.ParseFloat(s, 64); err == nil {
-		// fix rounding
-		// e.g. 18.42 -> 184.2000...02
-		// FIXME(?) can it be done more efficiently?
-		tmp := int(o * 100)
-		o = float64(tmp/10) + float64(tmp-(tmp/10)*10)/10
-	}
-	return o, err
+	return strconv.ParseFloat(s, 64)
 }
 
 func splitCommaseparatedVals(v string) []string {
@@ -458,7 +463,7 @@ func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record,
 
 	// increment paginator
 	if err == nil {
-		if _, ok := pages[fmt.Sprintf("%d", page)]; ok {
+		if _, ok := pages[fmt.Sprintf("%d", page+1)]; ok {
 			nextPage = page + 1
 		}
 	}
@@ -471,8 +476,6 @@ func (c Client) extractRecords(ctx context.Context, candidateURLPaths []string) 
 	var mu = new(sync.Mutex)
 	for _, s := range candidateURLPaths {
 		candidateURL := baseURL + s
-
-		log.Printf("read %s\n", candidateURL)
 
 		resp, er := c.HTTPClient.Get(candidateURL)
 		if er != nil {
@@ -497,7 +500,7 @@ func (c Client) extractRecords(ctx context.Context, candidateURLPaths []string) 
 		switch len(u) {
 		case 0:
 			var rec storage.Record
-			er := readDetailsPage(bytes.NewReader(body), &rec)
+			er := c.readDetailsPage(bytes.NewReader(body), &rec)
 			switch er {
 			case nil:
 				r = append(r, rec)
