@@ -130,6 +130,9 @@ func (h httpClient) Get(url string) (resp *http.Response, err error) {
 			}
 		}
 	}
+	if h.attempt == h.MaxRetries {
+		err = fmt.Errorf("http client reached attempts limit: %d", h.MaxRetries)
+	}
 	return resp, err
 }
 
