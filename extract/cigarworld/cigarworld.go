@@ -218,6 +218,9 @@ func readPrice(n htmlfilter.Node, o *storage.Record) error {
 			if nn.FirstChild != nil {
 				cntUnitsStr := strings.SplitN(strings.TrimSpace(nn.FirstChild.Data), "er", 2)[0]
 				cntUnitsStr = strings.SplitN(cntUnitsStr, " ", 2)[0]
+				// treat NBSP
+				// https://www.compart.com/en/unicode/U+00A0
+				cntUnitsStr = strings.SplitN(cntUnitsStr, "\u00a0", 2)[0]
 				cntUnitsStr = strings.TrimSpace(cntUnitsStr)
 
 				var cntUnits int
