@@ -8,10 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
+	"github.com/davecgh/go-spew/spew"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -286,6 +289,9 @@ func setAttribute(o *storage.Record, k string, v string) error {
 	case "Size", "Format":
 		o.Format = v
 
+	case "Produkt", "Item":
+		o.Series = v
+
 	case "Fabrication", "Herstellungsart":
 		o.TypeOfManufacturing = &v
 
@@ -396,8 +402,246 @@ func readName(n htmlfilter.Node) string {
 	return s
 }
 
-func (c Client) ReadBulk(ctx context.Context, limit, page uint) (r []storage.Record, nextPage uint, err error) {
-	//TODO implement me
-	// TODO: filter the words "humidor", "sampler", "jar", "kiste" in the lowered text
-	panic("implement me")
+type source struct {
+	Title   string
+	URLPath string
+}
+
+func (v source) Exclude() bool {
+	filters := map[string]struct{}{"humidor": {}, "samples": {}, "jar": {}, "kiste": {}, "set": {}}
+	var exclude bool
+	s := strings.ToLower(v.URLPath)
+	for filter := range filters {
+		if ok := strings.Contains(s, filter); ok {
+			exclude = ok
+			break
+		}
+	}
+	return exclude
+}
+
+// IsAggregate indicates if the page describes the Brand and the product line, and includes the links to individual cigar.
+func (v source) IsAggregate(aggregateGroups map[string]struct{}) bool {
+	var ok bool
+	for aggregatePath := range aggregateGroups {
+		if strings.HasPrefix(v.URLPath, aggregatePath) {
+			ok = true
+			break
+		}
+	}
+	return ok
+}
+
+func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record, nextPage uint, err error) {
+	const baseURL = "https://www.cigarworld.de"
+
+	var resp *http.Response
+
+	// read root page to extract the URL for the given page
+	var (
+		pages      map[string]string
+		geoFilters map[string]struct{}
+		pageQuery  string
+	)
+	resp, err = c.HTTPClient.Get(baseURL + "/zigarren")
+	if err == nil {
+		pages, geoFilters, err = newPaginator(resp.Body)
+		_ = resp.Body.Close()
+		if err == nil {
+			var ok bool
+			if pageQuery, ok = pages[fmt.Sprintf("%d", page)]; !ok {
+				err = fmt.Errorf("page %d not found", page)
+			}
+		}
+	}
+	// read the urls to the Brands, or items present on the given page
+	var sources []source
+	if err == nil {
+		if resp, err = c.HTTPClient.Get(fmt.Sprintf("%s/zigarren?%s", baseURL, pageQuery)); err == nil {
+			if u, er := newSources(resp.Body); er == nil {
+				for _, el := range u {
+					if !el.Exclude() {
+						sources = append(sources, el)
+					}
+				}
+			} else {
+				err = er
+			}
+			_ = resp.Body.Close()
+		}
+	}
+
+	// extract the urls to the items
+	var urlsPath []string
+	if err == nil {
+		maxN := len(sources)
+		urlsPath = make([]string, 0, maxN)
+		var flags = make(chan struct{}, maxN)
+		var mu = new(sync.Mutex)
+		for _, s := range sources {
+			go func() {
+				mu.Lock()
+				switch s.IsAggregate(geoFilters) {
+				case false:
+					urlsPath = append(urlsPath, s.URLPath)
+
+				case true:
+					url := baseURL + s.URLPath
+					if u, er := readURLsOnAggregatePage(c.HTTPClient, url); er == nil {
+						for _, el := range u {
+							urlsPath = append(urlsPath, el)
+						}
+					} else {
+						err = errors.Join(err,
+							fmt.Errorf("error reading urls from the aggregate page %s: %w", url, er))
+					}
+				}
+				mu.Unlock()
+				flags <- struct{}{}
+				log.Printf("ended for %s\n", s.URLPath)
+			}()
+		}
+		for maxN > 0 {
+			<-flags
+			maxN--
+		}
+	}
+
+	// fetch the records
+	if err == nil {
+		maxN := len(urlsPath)
+		spew.Dump(maxN)
+		var flags = make(chan struct{}, maxN)
+		var mu = new(sync.Mutex)
+		for _, el := range urlsPath {
+			go func() {
+				mu.Lock()
+				url := baseURL + el
+				if record, er := c.Read(ctx, url); er == nil {
+					r = append(r, record)
+				} else {
+					err = errors.Join(err, fmt.Errorf("error fetching record from %s: %w", url, er))
+				}
+				mu.Unlock()
+				flags <- struct{}{}
+			}()
+		}
+		for maxN > 0 {
+			<-flags
+			maxN--
+		}
+	}
+
+	if err == nil {
+		if _, ok := pages[fmt.Sprintf("%d", page)]; ok {
+			nextPage = page + 1
+		}
+	}
+
+	return r, nextPage, err
+}
+
+func readURLsOnAggregatePage(c extract.HTTPClient, url string) (urls []string, err error) {
+	var resp *http.Response
+	if resp, err = c.Get(url); err == nil {
+		defer func() { _ = resp.Body.Close() }()
+		var n *html.Node
+		if n, err = html.Parse(resp.Body); err == nil {
+			nn := htmlfilter.Node{Node: n}
+			for nn = range nn.Find("a.DetailVariant-col.DetailVariant-data") {
+				for _, att := range nn.Attr {
+					if att.Key == "href" {
+						urls = append(urls, att.Val)
+					}
+				}
+			}
+		}
+	}
+	return urls, err
+}
+
+func newSources(v io.Reader) (o []source, err error) {
+	var n *html.Node
+	if n, err = html.Parse(v); err == nil {
+		nn := htmlfilter.Node{Node: n}
+		for nn = range nn.Find("div.ws-g.search-result") {
+			for nnn := range nn.Find("div.search-result-item") {
+				for a := range nnn.Find("a.search-result-item-inner") {
+					s := source{}
+					for _, att := range a.Attr {
+						switch att.Key {
+						case "href":
+							s.URLPath = att.Val
+						case "title":
+							s.Title = att.Val
+						}
+					}
+					o = append(o, s)
+				}
+			}
+		}
+	}
+	return o, err
+}
+
+func newPaginator(v io.Reader) (o map[string]string, geoFilters map[string]struct{}, err error) {
+	var n *html.Node
+	if n, err = html.Parse(v); err == nil {
+		nn := htmlfilter.Node{Node: n}
+
+		for nnn := range nn.Find("select#pagination_select") {
+			var urlQueryKey string
+			for _, att := range nnn.Attr {
+				if att.Key == "name" {
+					urlQueryKey = att.Val
+					break
+				}
+			}
+			if urlQueryKey != "" {
+				o = make(map[string]string)
+				for nnn := range nnn.Find("option") {
+					if nnn.LastChild != nil {
+						pageID := nnn.LastChild.Data
+						for _, att := range nnn.Attr {
+							if att.Key == "value" {
+								o[pageID] = fmt.Sprintf("%s=%s", urlQueryKey, att.Val)
+								break
+							}
+						}
+					}
+				}
+			}
+		}
+
+		geoFilters = make(map[string]struct{})
+		var found bool
+		for nnn := range nn.Find("li.filter-item") {
+			if found {
+				break
+			}
+			for c := range nnn.ChildNodes() {
+				if c.DataAtom == atom.A {
+					for _, att := range c.Attr {
+						if att.Key == "href" && att.Val == "#filter-wgr" {
+							for el := range nnn.Find("li.ws-u-1.nobr") {
+								for c := range el.ChildNodes() {
+									if c.DataAtom == atom.A {
+										for _, att := range c.Attr {
+											if att.Key == "href" {
+												geoFilters[att.Val] = struct{}{}
+											}
+										}
+										break
+									}
+								}
+							}
+							found = true
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+	return o, geoFilters, err
 }
