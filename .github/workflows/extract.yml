@@ -1,8 +1,6 @@
 name: Extract
 
 on:
-  schedule:
-    - cron: '1 0 * * 1'
   workflow_dispatch:
 
 permissions:
