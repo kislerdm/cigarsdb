@@ -16,3 +16,8 @@ build: ## Builds the binary.
 .PHONY: lint
 lint: ## Runs the linter.
 	@ golangci-lint run
+
+SOURCE?=noblego
+DIR_OUT?=/tmp
+extract: ./bin/$(BIN) ## Runs data extraction.
+	@ ./bin/$(BIN) -i $(SOURCE) -o $(DIR_OUT)
