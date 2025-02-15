@@ -27,18 +27,18 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
       - name: Build binary
-        run: make build
+        run: go build -o runner -a -gcflags=all="-l -B -C" -ldflags="-w -s -X" .
       - name: Extract data
-        run: make extract SOURCE=${{ matrix.source }} DIR_OUT=${PWD}/tmp/${{ matrix.source }}
+        run: ./runner -i ${{ matrix.source }} -o tmp/${{ matrix.source }}
       - name: Checkout data branch
         run: git checkout data
       - name: Move to persistence dir
-        run: mv ${PWD}/tmp/${{ matrix.source }}/*.json ${PWD}/data/${{ matrix.source}}/
+        run: mv tmp/${{ matrix.source }}/*.json data/${{ matrix.source}}/
       - name: Commit and push
         run: |
           git config --global user.name "Dmitry Kisler"
           git config --global user.email "admin@dkisler.com"
-          git add ${PWD}/tmp/${{ matrix.source }}/*.json
+          git add data/${{ matrix.source }}/*.json
           git commit -S -m 'add extract from ${{ matrix.source }} as of $(date -u "+ %Y-%m-%d"). Signed-off by: Dmitry Kisler <admin@dkisler.com>'
           git fetch origin
           git rebase --strategy-option=theirs origin/data
