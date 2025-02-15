@@ -391,8 +391,9 @@ func setAttribute(o *storage.Record, k string, v string) error {
 	return err
 }
 
-// fix rounding
-// e.g. 18.42 -> 184.2 instead of 184.2000...02
+// cm2mm converts cm to mm without blowing the floating signs after the comma,
+//
+//	e.g. 18.42 -> 184.2 instead of 184.2000...02.
 func cm2mm(val float64) float64 {
 	tmp := int(val * 100)
 	return float64(tmp/10) + float64(tmp-(tmp/10)*10)/10
