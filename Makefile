@@ -11,7 +11,7 @@ test: ## Runs unit tests.
 BIN := fetchdata
 VERSION?=$(shell git rev-parse --short HEAD)
 build: ## Builds the binary.
-	@ go build -o ./bin/$(BIN) -a -gcflags=all="-l -B -C" -ldflags="-w -s -X main.version=$(VERSION)" .
+	@ go build -o $(PWD)/bin/$(BIN) -a -gcflags=all="-l -B -C" -ldflags="-w -s -X main.version=$(VERSION)" .
 
 .PHONY: lint
 lint: ## Runs the linter.
@@ -20,4 +20,4 @@ lint: ## Runs the linter.
 SOURCE?=noblego
 DIR_OUT?=/tmp
 extract: ./bin/$(BIN) ## Runs data extraction.
-	@ ./bin/$(BIN) -i $(SOURCE) -o $(DIR_OUT)
+	@ $(PWD)/bin/$(BIN) -i $(SOURCE) -o $(DIR_OUT)
