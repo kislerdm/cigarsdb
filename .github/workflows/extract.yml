@@ -27,7 +27,7 @@ jobs:
           go-version-file: 'go.mod'
           cache: true
       - name: Build binary
-        run: go build -o runner -a -gcflags=all="-l -B -C" -ldflags="-w -s -X" .
+        run: go build -o runner -a -gcflags=all="-l -B -C" -ldflags="-w -s" .
       - name: Extract data
         run: ./runner -i ${{ matrix.source }} -o tmp/${{ matrix.source }}
       - name: Checkout data branch
