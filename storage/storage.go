@@ -49,7 +49,7 @@ type Record struct {
 	// WrapperProperty the wrapper leaf type, e.g., Shade, Sun Grown etc.
 	WrapperProperty *string `json:"wrapperProperty,omitempty"`
 	// WrapperTobaccoVariety the wrapper outer leaf tobacco's variety.
-	WrapperTobaccoVariety *string `json:"WrapperTobaccoVariety,omitempty"`
+	WrapperTobaccoVariety *string `json:"wrapperTobaccoVariety,omitempty"`
 
 	// FillerOrigin the filler countries of origin.
 	FillerOrigin []string `json:"fillerOrigin,omitempty"`
@@ -63,7 +63,7 @@ type Record struct {
 	// BinderProperty the binder leaf type.
 	BinderProperty *string `json:"binderProperty,omitempty"`
 	// BinderTobaccoVariety the binder property.
-	BinderTobaccoVariety *string `json:"BinderTobaccoVariety,omitempty"`
+	BinderTobaccoVariety *string `json:"binderTobaccoVariety,omitempty"`
 
 	// IsFlavoured indicates if the cigar is flavoured.
 	IsFlavoured *bool `json:"isFlavoured,omitempty"`
