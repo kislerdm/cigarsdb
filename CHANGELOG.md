@@ -7,6 +7,10 @@
 ### Fixed
 
 - Fixed the floating point rounding when storing data after parsing string to float64 and converting cm to mm.
+- Fixed extraction of the following attributes from noblego.de:
+  - `WrapperTobaccoVariety`;
+  - `Format`;
+  - `Construction`.
 
 ## 0.4.0 - 2025-02-15
 

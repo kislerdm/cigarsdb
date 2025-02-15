@@ -219,6 +219,10 @@ func readAttributes(n htmlfilter.Node, o *storage.Record) error {
 				case "product-attribute-series":
 					if v := dataFromATagText(val); v != nil {
 						o.Series = *v
+					} else {
+						if v = dataFromFirstSpanChild(val); v != nil {
+							o.Series = *v
+						}
 					}
 
 				// Shape
@@ -237,6 +241,10 @@ func readAttributes(n htmlfilter.Node, o *storage.Record) error {
 				case "product-attribute-cig_size":
 					if v := dataFromATagText(val); v != nil {
 						o.Format = *v
+					} else {
+						if v = dataFromFirstSpanChild(val); v != nil {
+							o.Format = *v
+						}
 					}
 
 				// Manufacturing
@@ -248,6 +256,9 @@ func readAttributes(n htmlfilter.Node, o *storage.Record) error {
 					}
 				case "product-attribute-cig_construction":
 					o.Construction = dataFromATagText(val)
+					if o.Construction == nil {
+						o.Construction = dataFromFirstSpanChild(val)
+					}
 				case "product-attribute-cig_form":
 					o.IsBoxpressed = pointer(false)
 					if v := dataFromATagText(val); v != nil && strings.ToLower(*v) == "boxpressed" {
@@ -268,7 +279,7 @@ func readAttributes(n htmlfilter.Node, o *storage.Record) error {
 						o.BinderOrigin = parseConcatSlice(*v)
 					}
 				case "product-attribute-cig_wrapper_tobacco":
-					o.BinderProperty = dataFromFirstSpanChild(val)
+					o.WrapperTobaccoVariety = dataFromFirstSpanChild(val)
 				case "product-attribute-cig_aroma":
 					if v := dataFromFirstSpanChild(val); v != nil {
 						o.AromaProfileManufacturer = parseConcatSlice(*v)

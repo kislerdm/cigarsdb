@@ -16,52 +16,6 @@ import (
 //go:embed testdata/details-diesel-crucible-toro.html
 var detailsDieselCrucibleToro []byte
 var wantDieselCrucibleToro = storage.Record{
-	Name:              "Diesel Cask Aged Robusto",
-	URL:               "https://www.noblego.de/diesel-cask-aged-robusto-zigarren/",
-	Brand:             "Diesel",
-	Series:            "Cask Aged",
-	Diameter:          20.6,
-	Ring:              52,
-	Length:            127,
-	Format:            "Robusto",
-	Maker:             pointer("AJ Fernandez"),
-	ManufactureOrigin: "Nicaragua",
-	Construction:      pointer("Longfiller"),
-	IsBoxpressed:      pointer(false),
-	WrapperOrigin:     []string{"USA"},
-	FillerOrigin:      []string{"Nicaragua"},
-	BinderOrigin:      []string{"Brasilien"},
-	BinderProperty:    pointer("Broadleaf"),
-	AromaProfileManufacturer: []string{
-		"Cremig", "Erdig", "Fruchtig", "Pfeffer", "Schokolade", "Trockenes Holz", "Zedernholz",
-	},
-	AdditionalNotes: pointer("fassgereifter Tabak"),
-	Strength:        pointer("Medium"),
-	FlavourStrength: pointer("Medium-aromatisch"),
-	SmokingDuration: pointer("45 bis 60 Min"),
-	Price:           8.9,
-	Details: map[string]string{
-		"Genussverlauf": "Das Connecticut Broadleaf Deckblatt aus US-amerikanischem Anbau ist von " +
-			"sattbrauner Farbe. Das brasilianische Arapiraca Umblatt der Cask Aged Robusto wurde für " +
-			"circa ein Jahr in ausgedienten Sherry-Fässern gelagert. Unter dem vorbehandelten Umblatt liegt " +
-			"eine handverlesene Auswahl nicaraguanischer Tabake. Die mittelkräftige Robusto startet mit " +
-			"holzigen Aromen, welche von einer feinen Rosinensüße flankiert werden. Hin und wieder " +
-			"aufkeimende Pfeffernoten sind Indiz für das Wechselspiel der Aromen. Im weiteren Verlauf " +
-			"bilden sich schokoladige Noten und cremige Erd- sowie Trockenholzaromen. Final erscheinen " +
-			"alle im Vorfeld geschilderten Aromen in unterschiedlicher Intensität. Nach gut 60 Minuten ist " +
-			"dieser vollmundige Genuss vorbei und hinterlässt bei seinem Konsumenten einen sehr gut " +
-			"unterhaltenen Gaumen.",
-		"Nice to know": "Hergestellt werden die Diesel Cask Aged Zigarren bei A.J. Fernandez in Nicaragua. " +
-			"Ihr aufregender Blend wurde von Abdel höchstpersönlich entwickelt.",
-		"Resümee": "Eine sehr gut gemachte Zigarre mit komplexen Anleihen, die definitiv über das gewisse " +
-			"Etwas verfügt. Probieren Sie die Diesel Cask Aged Robusto einfach. " +
-			"Wir sind gespannt darauf, wie sie Ihnen zusagen wird.",
-	},
-}
-
-//go:embed testdata/details-diesel-cask-aged-robusto.html
-var detailsDieselCaskAgedRobusto []byte
-var wantDieselCaskAgedRobusto = storage.Record{
 	Name:              "Diesel Crucible Limited Edition 2021 Toro",
 	URL:               "https://www.noblego.de/diesel-crucible-toro-zigarren/",
 	Brand:             "Diesel",
@@ -103,6 +57,52 @@ var wantDieselCaskAgedRobusto = storage.Record{
 	},
 }
 
+//go:embed testdata/details-diesel-cask-aged-robusto.html
+var detailsDieselCaskAgedRobusto []byte
+var wantDieselCaskAgedRobusto = storage.Record{
+	Name:                  "Diesel Cask Aged Robusto",
+	URL:                   "https://www.noblego.de/diesel-cask-aged-robusto-zigarren/",
+	Brand:                 "Diesel",
+	Series:                "Cask Aged",
+	Diameter:              20.6,
+	Ring:                  52,
+	Length:                127,
+	Format:                "Robusto",
+	Maker:                 pointer("AJ Fernandez"),
+	ManufactureOrigin:     "Nicaragua",
+	Construction:          pointer("Longfiller"),
+	IsBoxpressed:          pointer(false),
+	WrapperOrigin:         []string{"USA"},
+	FillerOrigin:          []string{"Nicaragua"},
+	BinderOrigin:          []string{"Brasilien"},
+	WrapperTobaccoVariety: pointer("Broadleaf"),
+	AromaProfileManufacturer: []string{
+		"Cremig", "Erdig", "Fruchtig", "Pfeffer", "Schokolade", "Trockenes Holz", "Zedernholz",
+	},
+	AdditionalNotes: pointer("fassgereifter Tabak"),
+	Strength:        pointer("Medium"),
+	FlavourStrength: pointer("Medium-aromatisch"),
+	SmokingDuration: pointer("45 bis 60 Min"),
+	Price:           8.9,
+	Details: map[string]string{
+		"Genussverlauf": "Das Connecticut Broadleaf Deckblatt aus US-amerikanischem Anbau ist von " +
+			"sattbrauner Farbe. Das brasilianische Arapiraca Umblatt der Cask Aged Robusto wurde für " +
+			"circa ein Jahr in ausgedienten Sherry-Fässern gelagert. Unter dem vorbehandelten Umblatt liegt " +
+			"eine handverlesene Auswahl nicaraguanischer Tabake. Die mittelkräftige Robusto startet mit " +
+			"holzigen Aromen, welche von einer feinen Rosinensüße flankiert werden. Hin und wieder " +
+			"aufkeimende Pfeffernoten sind Indiz für das Wechselspiel der Aromen. Im weiteren Verlauf " +
+			"bilden sich schokoladige Noten und cremige Erd- sowie Trockenholzaromen. Final erscheinen " +
+			"alle im Vorfeld geschilderten Aromen in unterschiedlicher Intensität. Nach gut 60 Minuten ist " +
+			"dieser vollmundige Genuss vorbei und hinterlässt bei seinem Konsumenten einen sehr gut " +
+			"unterhaltenen Gaumen.",
+		"Nice to know": "Hergestellt werden die Diesel Cask Aged Zigarren bei A.J. Fernandez in Nicaragua. " +
+			"Ihr aufregender Blend wurde von Abdel höchstpersönlich entwickelt.",
+		"Resümee": "Eine sehr gut gemachte Zigarre mit komplexen Anleihen, die definitiv über das gewisse " +
+			"Etwas verfügt. Probieren Sie die Diesel Cask Aged Robusto einfach. " +
+			"Wir sind gespannt darauf, wie sie Ihnen zusagen wird.",
+	},
+}
+
 func TestClient_Read(t *testing.T) {
 	tests := map[string]struct {
 		httpClient HTTPClient
@@ -113,13 +113,13 @@ func TestClient_Read(t *testing.T) {
 		"https://www.noblego.de/diesel-cask-aged-robusto-zigarren/": {
 			httpClient: mockHttp{Body: io.NopCloser(bytes.NewReader(detailsDieselCaskAgedRobusto))},
 			id:         "https://www.noblego.de/diesel-cask-aged-robusto-zigarren/",
-			wantR:      wantDieselCrucibleToro,
+			wantR:      wantDieselCaskAgedRobusto,
 			wantErr:    assert.NoError,
 		},
 		"https://www.noblego.de/diesel-crucible-toro-zigarren/": {
 			httpClient: mockHttp{Body: io.NopCloser(bytes.NewReader(detailsDieselCrucibleToro))},
 			id:         "https://www.noblego.de/diesel-crucible-toro-zigarren/",
-			wantR:      wantDieselCaskAgedRobusto,
+			wantR:      wantDieselCrucibleToro,
 			wantErr:    assert.NoError,
 		},
 	}
@@ -235,8 +235,8 @@ func TestClient_ReadBulk(t *testing.T) {
 		},
 	}}
 	want := []storage.Record{
-		wantDieselCrucibleToro,
 		wantDieselCaskAgedRobusto,
+		wantDieselCrucibleToro,
 	}
 	got, nextPage, err := c.ReadBulk(context.TODO(), 0, 1)
 	assert.NoError(t, err)
@@ -285,7 +285,7 @@ func Test_ReadVideo(t *testing.T) {
 			"Dominikanische Republik", "Nicaragua",
 		},
 		BinderOrigin:             []string{"Nicaragua"},
-		BinderProperty:           pointer("Connecticut Shade"),
+		WrapperTobaccoVariety:    pointer("Connecticut Shade"),
 		AromaProfileManufacturer: []string{"Cremig", "Fruchtig", "Kaffee", "Süß"},
 		Strength:                 pointer("Mild"),
 		FlavourStrength:          pointer("Medium-kräftig"),
@@ -367,7 +367,7 @@ func TestClient_ReadExceptionalStructure(t *testing.T) {
 				IsBoxpressed:             pointer(false),
 				FillerOrigin:             []string{"Honduras", "Nicaragua", "Peru"},
 				BinderOrigin:             []string{"Nicaragua"},
-				BinderProperty:           pointer("Connecticut Shade"),
+				WrapperTobaccoVariety:    pointer("Connecticut Shade"),
 				AromaProfileManufacturer: []string{"Cremig", "Erdig", "Gewürze", "Nuss", "Pfeffer", "Röstaromen"},
 				Strength:                 pointer("Medium"),
 				FlavourStrength:          pointer("Mild-aromatisch"),
