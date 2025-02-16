@@ -47,23 +47,23 @@ type Record struct {
 	// WrapperOrigin the wrapper countries of origin.
 	WrapperOrigin []string `json:"wrapperOrigin,omitempty"`
 	// WrapperProperty the wrapper leaf type, e.g., Shade, Sun Grown etc.
-	WrapperProperty *string `json:"wrapperProperty,omitempty"`
+	WrapperProperty []string `json:"wrapperProperty,omitempty"`
 	// WrapperTobaccoVariety the wrapper outer leaf tobacco's variety.
-	WrapperTobaccoVariety *string `json:"wrapperTobaccoVariety,omitempty"`
+	WrapperTobaccoVariety []string `json:"wrapperTobaccoVariety,omitempty"`
 
 	// FillerOrigin the filler countries of origin.
 	FillerOrigin []string `json:"fillerOrigin,omitempty"`
 	// FillerProperty the filler property, e.g., Jalapa.
-	FillerProperty *string `json:"fillerProperty,omitempty"`
+	FillerProperty []string `json:"fillerProperty,omitempty"`
 	// FillerTobaccoVariety the filler property, e.g., Jalapa.
-	FillerTobaccoVariety *string `json:"fillerTobaccoVariety,omitempty"`
+	FillerTobaccoVariety []string `json:"fillerTobaccoVariety,omitempty"`
 
 	// BinderOrigin the binder countries of origin.
 	BinderOrigin []string `json:"binderOrigin,omitempty"`
 	// BinderProperty the binder leaf type.
-	BinderProperty *string `json:"binderProperty,omitempty"`
+	BinderProperty []string `json:"binderProperty,omitempty"`
 	// BinderTobaccoVariety the binder property.
-	BinderTobaccoVariety *string `json:"binderTobaccoVariety,omitempty"`
+	BinderTobaccoVariety []string `json:"binderTobaccoVariety,omitempty"`
 
 	// IsFlavoured indicates if the cigar is flavoured.
 	IsFlavoured *bool `json:"isFlavoured,omitempty"`

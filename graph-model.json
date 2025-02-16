@@ -1,0 +1,472 @@
+{
+  "style": {
+    "font-family": "sans-serif",
+    "background-color": "#ffffff",
+    "background-image": "",
+    "background-size": "100%",
+    "node-color": "#ffffff",
+    "border-width": 4,
+    "border-color": "#000000",
+    "radius": 50,
+    "node-padding": 5,
+    "node-margin": 2,
+    "outside-position": "auto",
+    "node-icon-image": "",
+    "node-background-image": "",
+    "icon-position": "inside",
+    "icon-size": 64,
+    "caption-position": "inside",
+    "caption-max-width": 200,
+    "caption-color": "#000000",
+    "caption-font-size": 50,
+    "caption-font-weight": "normal",
+    "label-position": "inside",
+    "label-display": "pill",
+    "label-color": "#000000",
+    "label-background-color": "#ffffff",
+    "label-border-color": "#000000",
+    "label-border-width": 4,
+    "label-font-size": 40,
+    "label-padding": 5,
+    "label-margin": 4,
+    "directionality": "directed",
+    "detail-position": "inline",
+    "detail-orientation": "parallel",
+    "arrow-width": 5,
+    "arrow-color": "#000000",
+    "margin-start": 5,
+    "margin-end": 5,
+    "margin-peer": 20,
+    "attachment-start": "normal",
+    "attachment-end": "normal",
+    "relationship-icon-image": "",
+    "type-color": "#000000",
+    "type-background-color": "#ffffff",
+    "type-border-color": "#000000",
+    "type-border-width": 0,
+    "type-font-size": 16,
+    "type-padding": 5,
+    "property-position": "outside",
+    "property-alignment": "colon",
+    "property-color": "#000000",
+    "property-font-size": 16,
+    "property-font-weight": "normal"
+  },
+  "nodes": [
+    {
+      "id": "n0",
+      "position": {
+        "x": 2.9063883497297103,
+        "y": 0.9470774820389352
+      },
+      "caption": "",
+      "style": {},
+      "labels": [
+        "cigar"
+      ],
+      "properties": {
+        "identifier": "",
+        "name": "",
+        "description": ""
+      }
+    },
+    {
+      "id": "n1",
+      "position": {
+        "x": -266.0378015117201,
+        "y": 0
+      },
+      "caption": "",
+      "labels": [
+        "manufacturer"
+      ],
+      "properties": {
+        "name": "",
+        "identifier": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n2",
+      "position": {
+        "x": -266.0378015117201,
+        "y": 273.6508394273571
+      },
+      "caption": "",
+      "labels": [
+        "format"
+      ],
+      "properties": {
+        "identifier": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n3",
+      "position": {
+        "x": -160.79014825587814,
+        "y": 347.215416985796
+      },
+      "caption": "",
+      "labels": [
+        "length"
+      ],
+      "properties": {
+        "mm": "",
+        "inch": "",
+        "identifier": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n4",
+      "position": {
+        "x": -37.143088503556704,
+        "y": 381.85961133087204
+      },
+      "caption": "",
+      "labels": [
+        "diameter"
+      ],
+      "properties": {
+        "diamter_mm": "",
+        "gauge": "",
+        "identifier": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n5",
+      "position": {
+        "x": 321.5433981974363,
+        "y": 273.6508394273571
+      },
+      "caption": "",
+      "labels": [
+        "geolocation"
+      ],
+      "properties": {
+        "name": "",
+        "identifier": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n6",
+      "position": {
+        "x": -214.96269740368976,
+        "y": -156.7391162349689
+      },
+      "caption": "",
+      "labels": [
+        "serie"
+      ],
+      "properties": {
+        "name": "",
+        "identifier": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n7",
+      "position": {
+        "x": 468.8877909917466,
+        "y": -48.42303140790652
+      },
+      "caption": "",
+      "labels": [
+        "tobacco_type"
+      ],
+      "properties": {
+        "name": "",
+        "identifier": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n8",
+      "position": {
+        "x": 2.9063883497297103,
+        "y": -314.4918618742028
+      },
+      "caption": "",
+      "labels": [
+        "website"
+      ],
+      "properties": {
+        "name": "",
+        "url": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n9",
+      "position": {
+        "x": 2.9063883497296956,
+        "y": -556.6126849986221
+      },
+      "caption": "",
+      "labels": [
+        "price"
+      ],
+      "properties": {
+        "euro": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n10",
+      "position": {
+        "x": 407.4076635692762,
+        "y": 111.74240305842265
+      },
+      "caption": "",
+      "labels": [
+        "strength",
+        "strong"
+      ],
+      "properties": {
+        "identifier": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n11",
+      "position": {
+        "x": -312.17027646142975,
+        "y": 151.15019195586018
+      },
+      "caption": "",
+      "labels": [
+        "is_boxpressed"
+      ],
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n12",
+      "position": {
+        "x": 237.20111474152588,
+        "y": -404.86329257400087
+      },
+      "caption": "",
+      "labels": [
+        "aroma"
+      ],
+      "properties": {
+        "identifier": "",
+        "name": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n13",
+      "position": {
+        "x": 349.42384937851506,
+        "y": -314.4918618742028
+      },
+      "caption": "",
+      "labels": [
+        "aroma_strength"
+      ],
+      "properties": {
+        "identifier": "",
+        "name": ""
+      },
+      "style": {}
+    },
+    {
+      "id": "n14",
+      "position": {
+        "x": 432.8341100617518,
+        "y": -204.00774784113693
+      },
+      "caption": "",
+      "labels": [
+        "is_flavoured"
+      ],
+      "properties": {},
+      "style": {}
+    },
+    {
+      "id": "n15",
+      "position": {
+        "x": 112.87494017663329,
+        "y": 347.215416985796
+      },
+      "caption": "",
+      "labels": [
+        "manufacturing_type"
+      ],
+      "properties": {
+        "identifier": ""
+      },
+      "style": {}
+    }
+  ],
+  "relationships": [
+    {
+      "id": "n0",
+      "type": "has_manufacturer",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n1"
+    },
+    {
+      "id": "n1",
+      "type": "shaped_as",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n2"
+    },
+    {
+      "id": "n2",
+      "type": "shaped_as",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n3"
+    },
+    {
+      "id": "n3",
+      "type": "shaped_as",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n4"
+    },
+    {
+      "id": "n4",
+      "type": "is_manufactured_in",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n5"
+    },
+    {
+      "id": "n5",
+      "type": "wrapper_grown_in",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n5"
+    },
+    {
+      "id": "n6",
+      "type": "binder_grown_in",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n5"
+    },
+    {
+      "id": "n7",
+      "type": "fillter_grown_in",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n5"
+    },
+    {
+      "id": "n8",
+      "type": "is_of_serie",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n6"
+    },
+    {
+      "id": "n9",
+      "type": "has_wrapper_of_type",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n7"
+    },
+    {
+      "id": "n10",
+      "type": "has_binder_of_type",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n7"
+    },
+    {
+      "id": "n11",
+      "type": "has_filler_of_type",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n7"
+    },
+    {
+      "id": "n12",
+      "type": "is_at",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n8"
+    },
+    {
+      "id": "n13",
+      "type": "has_price",
+      "style": {},
+      "properties": {},
+      "fromId": "n8",
+      "toId": "n9"
+    },
+    {
+      "id": "n14",
+      "type": "has_strength",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n10"
+    },
+    {
+      "id": "n15",
+      "type": "shaped_as",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n11"
+    },
+    {
+      "id": "n16",
+      "type": "has_aroma",
+      "style": {},
+      "properties": {
+        "weight": "",
+        "number_of_voters": ""
+      },
+      "fromId": "n0",
+      "toId": "n12"
+    },
+    {
+      "id": "n17",
+      "type": "has_aroma_strength",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n13"
+    },
+    {
+      "id": "n18",
+      "type": "is_flavoured",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n14"
+    },
+    {
+      "id": "n19",
+      "type": "has_manufacturing_type",
+      "style": {},
+      "properties": {},
+      "fromId": "n0",
+      "toId": "n15"
+    }
+  ]
+}

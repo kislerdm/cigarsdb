@@ -37,6 +37,10 @@ The repo contains the application to extract and persist the information describ
 | Experience     | FlavourStrength          | How strong the cigar's aroma is.                                                                                     | strong                                                                                                                                                                                                                           |                                                         ✅                                                         |                                              ❌                                               |
 | Purchase       | Price                    | Purchasing price in Euro per cigar.                                                                                  | 24.2                                                                                                                                                                                                                             |                                                         ✅                                                         |                                              ✅                                               |
 
+## Knowledge graph data model
+
+![graph-model](graph-model.png)
+
 ## TODO
 
 - [] Add data extraction from sigarworld.de concerning the Brand
