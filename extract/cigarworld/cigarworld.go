@@ -335,28 +335,28 @@ func setAttribute(o *storage.Record, k string, v string) error {
 		o.BinderOrigin = splitCommaseparatedVals(v)
 
 	case "Outer leaf tobacco variety", "Umblatt Tabaksorte":
-		o.BinderTobaccoVariety = &v
+		o.BinderTobaccoVariety = []string{v}
 
 	case "Outer leaf tobacco property", "Umblatt Eigenschaft":
-		o.BinderProperty = &v
+		o.BinderProperty = []string{v}
 
 	case "Filler origin", "Einlage Land":
 		o.FillerOrigin = splitCommaseparatedVals(v)
 
 	case "Einlage Tabaksorte":
-		o.FillerTobaccoVariety = &v
+		o.FillerTobaccoVariety = []string{v}
 
 	case "Einlage Eigenschaft":
-		o.FillerProperty = &v
+		o.FillerProperty = []string{v}
 
 	case "Wrapper origin", "Deckblatt Land":
 		o.WrapperOrigin = splitCommaseparatedVals(v)
 
 	case "Topsheet / -leave tobacco variety", "Deckblatt Tabaksorte":
-		o.WrapperTobaccoVariety = &v
+		o.WrapperTobaccoVariety = []string{v}
 
 	case "Topsheet / -leave property", "Deckblatt Eigenschaft":
-		o.WrapperProperty = &v
+		o.WrapperProperty = []string{v}
 
 	case "Length", "Länge":
 		// one of may be missing

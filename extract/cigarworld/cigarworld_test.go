@@ -34,8 +34,8 @@ var wantDieselCaskAgedRobusto = storage.Record{
 	WrapperOrigin:        []string{"USA"},
 	FillerOrigin:         []string{"Nicaragua"},
 	BinderOrigin:         []string{"Mexiko"},
-	WrapperProperty:      pointer("Broadleaf"),
-	BinderTobaccoVariety: pointer("San Andrés"),
+	WrapperProperty:      []string{"Broadleaf"},
+	BinderTobaccoVariety: []string{"San Andrés"},
 	TypeOfManufacturing:  pointer("TAM"),
 	Price:                8.9,
 	AromaProfileCommunity: &storage.AromaProfileCommunity{
@@ -66,8 +66,8 @@ var wantMyFatherCigarsLimitedEditionTatuajeLaUnion = storage.Record{
 	WrapperOrigin:         []string{"Ecuador", "Nicaragua"},
 	FillerOrigin:          []string{"Nicaragua"},
 	BinderOrigin:          []string{"Nicaragua"},
-	WrapperTobaccoVariety: pointer("Corojo, H-2000"),
-	WrapperProperty:       pointer("Shade"),
+	WrapperTobaccoVariety: []string{"Corojo, H-2000"},
+	WrapperProperty:       []string{"Shade"},
 	TypeOfManufacturing:   pointer("TAM"),
 	Price:                 87.3,
 	Details: map[string]string{

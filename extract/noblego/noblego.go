@@ -279,7 +279,9 @@ func readAttributes(n htmlfilter.Node, o *storage.Record) error {
 						o.BinderOrigin = parseConcatSlice(*v)
 					}
 				case "product-attribute-cig_wrapper_tobacco":
-					o.WrapperTobaccoVariety = dataFromFirstSpanChild(val)
+					if vv := dataFromFirstSpanChild(val); vv != nil {
+						o.WrapperTobaccoVariety = strings.Split(*vv, ", ")
+					}
 				case "product-attribute-cig_aroma":
 					if v := dataFromFirstSpanChild(val); v != nil {
 						o.AromaProfileManufacturer = parseConcatSlice(*v)
