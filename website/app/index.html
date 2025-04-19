@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalog Webpage</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            background-color: #f4f4f9;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header and Navigation */
+        header {
+            background-color: #ffffff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 10;
+        }
+
+        nav {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 1.5rem;
+        }
+
+        nav ul li a {
+            text-decoration: none;
+            color: #555;
+            font-size: 1rem;
+            transition: color 0.3s;
+        }
+
+        nav ul li a:hover {
+            color: #007bff;
+        }
+
+        /* Main Content */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding-top: 5rem; /* Space for fixed header */
+        }
+
+        /* Search Bar */
+        .search-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        #searchInput {
+            flex: 1;
+            max-width: 600px;
+            padding: 0.75rem;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        #searchInput:focus {
+            border-color: #007bff;
+        }
+
+        /* View Switch */
+        .view-switch {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .view-switch button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ccc;
+            background: #fff;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .view-switch button.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        /* Catalog Container */
+        .catalog-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        /* Results Container */
+        .results-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Carousel */
+        .carousel {
+            overflow: hidden;
+            position: relative;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .carousel.active {
+            display: block;
+        }
+
+        .carousel-container {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+        }
+
+        .carousel-item {
+            min-width: 100%;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .carousel-item img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .carousel-controls {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            transform: translateY(-50%);
+        }
+
+        .carousel-controls button {
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 0.5rem;
+            cursor: pointer;
+            font-size: 1.5rem;
+        }
+
+        /* Table View */
+        .table-view {
+            display: none;
+            margin: 1rem 0;
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .table-view.active {
+            display: table;
+        }
+
+        .table-view th,
+        .table-view td {
+            border: 1px solid #ccc;
+            padding: 1rem;
+            text-align: left;
+        }
+
+        .table-view th {
+            background: #f0f0f0;
+            font-weight: bold;
+        }
+
+        .table-view img {
+            max-width: 100px;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        /* No Results Placeholder */
+        .no-results {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+            font-size: 1.2rem;
+            color: #555;
+        }
+
+        /* Catalog Item Details */
+        .catalog-details {
+            background: #fff;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .catalog-details h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .catalog-details label {
+            display: block;
+            margin: 0.5rem 0 0.25rem;
+            font-weight: bold;
+        }
+
+        .catalog-details input,
+        .catalog-details textarea {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            background: #f9f9f9;
+            pointer-events: none;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid #ccc;
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #555;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .tab:hover {
+            background: #f0f0f0;
+        }
+
+        .tab.active {
+            background: #007bff;
+            color: white;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tab-content p {
+            margin: 0.5rem 0;
+        }
+
+        /* Footer */
+        footer {
+            background: #333;
+            color: white;
+            text-align: center;
+            padding: 1rem;
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            nav ul {
+                gap: 1rem;
+            }
+
+            .catalog-details {
+                padding: 0.75rem;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+
+            .tab {
+                flex: 1;
+                text-align: center;
+            }
+
+            .search-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .view-switch {
+                justify-content: center;
+            }
+
+            .table-view th,
+            .table-view td {
+                padding: 0.5rem;
+                font-size: 0.9rem;
+            }
+
+            .table-view img {
+                max-width: 50px;
+            }
+        }
+    </style>
+</head>
+<body>
+<!-- Header with Navigation -->
+<header>
+    <nav>
+        <div class="logo">Catalog</div>
+        <ul>
+            <li><a href="#catalog">Catalog</a></li>
+        </ul>
+    </nav>
+</header>
+
+<!-- Main Content -->
+<main>
+    <!-- Search Bar and View Switch -->
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Search catalog items...">
+        <div class="view-switch">
+            <button id="carouselView" class="active" onclick="switchView('carousel')">Carousel</button>
+            <button id="tableView" onclick="switchView('table')">Table</button>
+        </div>
+    </div>
+
+    <!-- Catalog -->
+    <div class="catalog-container" id="catalog">
+        <div class="results-container">
+            <div class="carousel active" id="carousel">
+                <div class="carousel-container">
+                    <div class="carousel-item">
+                        <img src="https://via.placeholder.com/600x300?text=Item+1" alt="Item 1">
+                        <p>Item 1 Description</p>
+                        <div class="catalog-details" id="catalogDetails">
+                            <h3>Item Details</h3>
+                            <div class="tabs" id="tabs-item1">
+                                <div class="tab active" onclick="showTab('info', 'item1')">Info</div>
+                                <div class="tab" onclick="showTab('pairings', 'item1')">Pairings</div>
+                                <div class="tab" onclick="showTab('videos', 'item1')">Videos</div>
+                                <div class="tab" onclick="showTab('where-to-buy', 'item1')">Where to Buy</div>
+                            </div>
+                            <div id="info-item1" class="tab-content active">
+                                <label for="name-item1">Name</label>
+                                <input type="text" id="name-item1" value="Sample Item" readonly>
+                                <label for="price-item1">Price</label>
+                                <input type="number" id="price-item1" value="99.99" readonly>
+                                <label for="desc-item1">Description</label>
+                                <textarea id="desc-item1" readonly>Sample item description goes here.</textarea>
+                            </div>
+                            <div id="pairings-item1" class="tab-content">
+                                <p>Recommended Pairings:</p>
+                                <p>- Pairing Item 1</p>
+                                <p>- Pairing Item 2</p>
+                            </div>
+                            <div id="videos-item1" class="tab-content">
+                                <p>Related Videos:</p>
+                                <p>- Video 1: Introduction to Item</p>
+                                <p>- Video 2: How to Use</p>
+                            </div>
+                            <div id="where-to-buy-item1" class="tab-content">
+                                <p>Available at:</p>
+                                <p>- Store A</p>
+                                <p>- Store B</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="carousel-controls">
+                    <button onclick="prevSlide()">❮</button>
+                    <button onclick="nextSlide()">❯</button>
+                </div>
+            </div>
+            <table class="table-view" id="table">
+                <thead>
+                <tr>
+                    <th>Image</th>
+                    <th>Description</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr class="table-item">
+                    <td><img src="https://via.placeholder.com/600x300?text=Item+1" alt="Item 1"></td>
+                    <td>Item 1 Description</td>
+                </tr>
+                <tr class="table-item">
+                    <td><img src="https://via.placeholder.com/600x300?text=Item+2" alt="Item 2"></td>
+                    <td>Item 2 Description</td>
+                </tr>
+                <tr class="table-item">
+                    <td><img src="https://via.placeholder.com/600x300?text=Item+3" alt="Item 3"></td>
+                    <td>Item 3 Description</td>
+                </tr>
+                </tbody>
+            </table>
+            <div class="no-results" id="noResults">Nothing found for your request</div>
+        </div>
+    </div>
+</main>
+
+<!-- Footer -->
+<footer>
+    <p>© 2025 Catalog Inc. All rights reserved.</p>
+</footer>
+
+<script>
+    // Smooth scrolling for navigation links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelector(this.getAttribute('href')).scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+
+    // Carousel functionality
+    const carousel = document.getElementById('carousel').querySelector('.carousel-container');
+    let currentSlide = 0;
+
+    function updateCarousel() {
+        const slideWidth = carousel.children[0].offsetWidth;
+        carousel.style.transform = `translateX(-${currentSlide * slideWidth}px)`;
+    }
+
+    function nextSlide() {
+        currentSlide = (currentSlide + 1) % carousel.children.length;
+        updateCarousel();
+    }
+
+    function prevSlide() {
+        currentSlide = (currentSlide - 1 + carousel.children.length) % carousel.children.length;
+        updateCarousel();
+    }
+
+    // View switch functionality
+    function switchView(view) {
+        const carouselView = document.getElementById('carousel');
+        const tableView = document.getElementById('table');
+        const carouselButton = document.getElementById('carouselView');
+        const tableButton = document.getElementById('tableView');
+
+        if (view === 'carousel') {
+            carouselView.style.display = 'block';
+            tableView.style.display = 'none';
+            carouselButton.classList.add('active');
+            tableButton.classList.remove('active');
+            updateCarousel();
+        } else {
+            carouselView.style.display = 'none';
+            tableView.style.display = 'table';
+            carouselButton.classList.remove('active');
+            tableButton.classList.add('active');
+        }
+    }
+
+    // Search functionality
+    document.getElementById('searchInput').addEventListener('input', function () {
+        const query = this.value.toLowerCase();
+        const carouselItems = document.querySelectorAll('.carousel-item');
+        const tableItems = document.querySelectorAll('.table-item');
+        const noResults = document.getElementById('noResults');
+        const catalogDetails = document.getElementById('catalogDetails');
+        let hasResults = false;
+
+        carouselItems.forEach((item, index) => {
+            const description = item.querySelector('p').textContent.toLowerCase();
+            const tableItem = tableItems[index];
+            if (description.includes(query)) {
+                item.style.display = 'block';
+                tableItem.style.display = 'table-row';
+                hasResults = true;
+            } else {
+                item.style.display = 'none';
+                tableItem.style.display = 'none';
+            }
+        });
+
+        // Show/hide no results placeholder and item details
+        noResults.style.display = hasResults ? 'none' : 'block';
+        catalogDetails.style.display = hasResults ? 'block' : 'none';
+
+        // Reset carousel to first slide after search
+        currentSlide = 0;
+        updateCarousel();
+    });
+
+    // Tab functionality
+    function showTab(tabId, itemID) {
+        const propsTabs = document.querySelector(`#tabs-${itemID}`);
+        propsTabs.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+        propsTabs.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelector(`[onclick="showTab('${tabId}', '${itemID}')"]`).classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+    }
+
+    // Initialize carousel
+    updateCarousel();
+    window.addEventListener('resize', updateCarousel);
+</script>
+</body>
+</html>
