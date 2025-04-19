@@ -5,7 +5,7 @@ on:
     branches:
       - "master"
     paths:
-      - "website/lp"
+      - "website/lp/*"
 
   workflow_dispatch:
 
