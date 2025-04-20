@@ -402,7 +402,7 @@ func cm2mm(val float64) float64 {
 func readFloat(v string) (o float64, err error) {
 	s := strings.SplitN(v, " ", 2)[0]
 	s = strings.TrimSpace(s)
-	s = strings.Replace(s, ",", ".", -1)
+	s = strings.ReplaceAll(s, ",", ".")
 	return strconv.ParseFloat(s, 64)
 }
 

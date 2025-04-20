@@ -185,7 +185,7 @@ func readPrice(n htmlfilter.Node, o *storage.Record) error {
 		tmp := nnn.LastChild.Data
 		// remove length of euro sign with the unbreakable space
 		tmp = tmp[:len(tmp)-5]
-		tmp = strings.Replace(tmp, ",", ".", -1)
+		tmp = strings.ReplaceAll(tmp, ",", ".")
 		cost, _ = strconv.ParseFloat(tmp, 64)
 	}
 
