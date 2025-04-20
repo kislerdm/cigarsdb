@@ -26,40 +26,18 @@ const cookie = "SMFCookie895=%7B%220%22%3A133942%2C%221%22%3A%22e30e17daccc11bb3
 	"%22%2C%222%22%3A1934324190%2C%223%22%3A%22www.cigargeeks.com%22%2C%224%22%3A%22%5C%2F%22%7D;" +
 	" PHPSESSID=baa432720e6018581b89f2ec76b6ed61"
 
-func (c Client) Read(_ context.Context, id string) (r storage.Record, err error) {
-	req, err := http.NewRequest(http.MethodGet, id, nil)
-	if err != nil {
-		err = fmt.Errorf("could not create request: %w", err)
+func (c Client) Read(ctx context.Context, id string) (r storage.Record, err error) {
+	var res any
+	res, err = c.processReq(ctx, id, readDetailsPage)
+	if err == nil {
+		r = res.(storage.Record)
+		r.URL = id
 	}
-	req.Header.Add("Cookie", cookie)
-
-	var resp *http.Response
-	resp, err = c.HTTPClient.Do(req)
-	defer func() { _ = resp.Body.Close() }()
-
-	switch err == nil {
-	case true:
-		if err = readDetailsPage(resp.Body, &r); err == nil {
-			r.URL = id
-		}
-
-	case false:
-		var respBytes []byte
-		var er error
-		respBytes, er = io.ReadAll(resp.Body)
-		switch er == nil {
-		case true:
-			err = fmt.Errorf("error reading %s, body: %s, error: %w", id, respBytes, err)
-		case false:
-			err = fmt.Errorf("error reading %s, error: %w", id, err)
-			err = errors.Join(err, fmt.Errorf("could node read the response: %w", er))
-		}
-	}
-
 	return r, err
 }
 
-func readDetailsPage(v io.ReadCloser, o *storage.Record) error {
+func readDetailsPage(_ context.Context, v io.ReadCloser) (any, error) {
+	var o = storage.Record{}
 	var err error
 	var doc *html.Node
 	if doc, err = html.Parse(v); err == nil {
@@ -163,7 +141,7 @@ func readDetailsPage(v io.ReadCloser, o *storage.Record) error {
 			}
 		}
 	}
-	return nil
+	return o, err
 }
 
 func readTobaccoOrigin(s string) []string {
@@ -182,7 +160,62 @@ func readTobaccoOrigin(s string) []string {
 	return o
 }
 
-func (c Client) ReadBulk(ctx context.Context, limit, page uint) (r []storage.Record, nextPage uint, err error) {
-	// TODO implement me
-	panic("implement me")
+func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record, nextPage uint, err error) {
+	if page == 0 {
+		page = 1
+	}
+	skip := (int(page) - 1) * 50
+	url := fmt.Sprintf("https://www.cigargeeks.com/index.php?action=cigars;area=showsearch;start=%d", skip)
+
+	var brands = make([]string, 0, 50)
+	_, err = c.processReq(ctx, url, func(_ context.Context, v io.ReadCloser) (any, error) {
+		var doc *html.Node
+		if doc, err = html.Parse(v); err == nil {
+			n := htmlfilter.Node{Node: doc}
+			for tab := range n.Find("ul#brands_list") {
+				for li := range tab.Find("li") {
+					for el := range li.Find("a") {
+						if el.DataAtom == atom.A {
+							brands = append(brands, strings.TrimSpace(el.LastChild.Data))
+						}
+					}
+				}
+			}
+		}
+		return brands, err
+	})
+
+	return nil, 0, err
+}
+
+func (c Client) processReq(ctx context.Context, url string,
+	fn func(ctx context.Context, v io.ReadCloser) (any, error)) (any, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		err = fmt.Errorf("could not create request: %w", err)
+	}
+	req.Header.Add("Cookie", cookie)
+
+	var resp *http.Response
+	resp, err = c.HTTPClient.Do(req)
+	defer func() { _ = resp.Body.Close() }()
+
+	switch err == nil {
+	case true:
+		return fn(ctx, resp.Body)
+
+	case false:
+		var respBytes []byte
+		var er error
+		respBytes, er = io.ReadAll(resp.Body)
+		switch er == nil {
+		case true:
+			err = fmt.Errorf("error reading %s, body: %s, error: %w", url, respBytes, err)
+		case false:
+			err = fmt.Errorf("error reading %s, error: %w", url, err)
+			err = errors.Join(err, fmt.Errorf("could node read the response: %w", er))
+		}
+	}
+
+	return nil, err
 }
