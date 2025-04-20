@@ -65,6 +65,9 @@ type Record struct {
 	// BinderTobaccoVariety the binder property.
 	BinderTobaccoVariety []string `json:"binderTobaccoVariety,omitempty"`
 
+	// Color defines the wrapper's color.
+	Color *string `json:"color,omitempty"`
+
 	// IsFlavoured indicates if the cigar is flavoured.
 	IsFlavoured *bool `json:"isFlavoured,omitempty"`
 	// AromaProfileManufacturer Array of aroma flavours according to the data source / website.
