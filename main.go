@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cigarsdb/extract/cigargeeks"
 	"cigarsdb/extract/cigarworld"
 	"cigarsdb/extract/noblego"
 	"cigarsdb/storage"
@@ -86,6 +87,8 @@ func main() {
 		}
 
 		page = nextPage
+		// delay to prevent denial of server
+		time.Sleep(1 * time.Second)
 	}
 }
 
@@ -97,6 +100,9 @@ func newSource(s string, logs *slog.Logger, writer storage.Writer) (source stora
 		source = noblego.Client{HTTPClient: c}
 	case "cigarworld":
 		source = cigarworld.Client{HTTPClient: c, Dumper: writer, Logs: logs}
+	case "cigargeeks":
+		source = cigargeeks.Client{HTTPClient: c, Dumper: writer, Logs: logs}
+
 	default:
 		err = fmt.Errorf("data source is unknown")
 	}
@@ -113,8 +119,20 @@ type httpClient struct {
 }
 
 func (h httpClient) Get(url string) (resp *http.Response, err error) {
+	return h.work(func() (*http.Response, error) {
+		return h.c.Get(url)
+	})
+}
+
+func (h httpClient) Do(req *http.Request) (resp *http.Response, err error) {
+	return h.work(func() (*http.Response, error) {
+		return h.c.Do(req)
+	})
+}
+
+func (h httpClient) work(fn func() (*http.Response, error)) (resp *http.Response, err error) {
 	for h.attempt < h.MaxRetries {
-		if resp, err = h.c.Get(url); err == nil {
+		if resp, err = fn(); err == nil {
 			if resp.StatusCode == http.StatusTooManyRequests {
 				h.mu.Lock()
 				delay := time.Duration(h.InitialDelay.Nanoseconds() + h.Backoff.Nanoseconds()*int64(h.attempt))
