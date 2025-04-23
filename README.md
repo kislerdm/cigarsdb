@@ -43,5 +43,9 @@ The repo contains the application to extract and persist the information describ
 
 ## TODO
 
-- [] Add data extraction from sigarworld.de concerning the Brand
-  ![img.png](img.png)
+- [] complete data extraction from cigargeeks.com
+- [] extract data from www.cigarcentury.com:
+  - Get the page https://www.cigarcentury.com/en/cigars?page=473.
+  - Extract all cigars URL.
+  - Get cigar profiles using extracted URLs.
+  - Save.
