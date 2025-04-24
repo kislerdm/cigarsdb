@@ -1,6 +1,9 @@
 package extract
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 )
@@ -43,4 +46,41 @@ func (m MockHTTP) Do(req *http.Request) (*http.Response, error) {
 		}
 	}
 	return r, m.Err
+}
+
+func ProcessReq(ctx context.Context, c HTTPClient, url string, headers http.Header,
+	fn func(ctx context.Context, v io.ReadCloser) (any, error)) (o any, err error) {
+	var req *http.Request
+	req, err = http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		err = fmt.Errorf("could not create request: %w", err)
+	}
+	req.Header = headers
+
+	var resp *http.Response
+	resp, err = c.Do(req)
+
+	switch err == nil {
+	case true:
+		o, err = fn(ctx, resp.Body)
+		_ = resp.Body.Close()
+
+	case false:
+		var respBytes []byte
+		var er error
+		if resp != nil {
+			respBytes, er = io.ReadAll(resp.Body)
+			switch er == nil {
+			case true:
+				err = fmt.Errorf("error reading %s, body: %s, error: %w", url, respBytes, err)
+			case false:
+				err = fmt.Errorf("error reading %s, error: %w", url, err)
+				err = errors.Join(err, fmt.Errorf("could node read the response: %w", er))
+			}
+		} else {
+			err = fmt.Errorf("error reading %s, error: %w", url, err)
+		}
+	}
+
+	return o, err
 }

@@ -88,23 +88,22 @@ type Record struct {
 	AdditionalNotes *string `json:"additionalNotes,omitempty"`
 }
 
+func (r Record) IsEmpty() bool {
+	return r.Name == ""
+}
+
 type AromaProfileCommunity struct {
 	Weights       map[string]float64 `json:"weights"`
 	NumberOfVotes int                `json:"numberOfVotes"`
 }
 
 type Writer interface {
-	Write(ctx context.Context, r Record) (id string, err error)
-	WriteBulk(ctx context.Context, r []Record) (ids []string, err error)
+	Write(ctx context.Context, r []Record) (ids []string, err error)
 }
 
 type Reader interface {
 	Read(ctx context.Context, id string) (r Record, err error)
 	ReadBulk(ctx context.Context, limit, page uint) (r []Record, nextPage uint, err error)
-}
-
-type Seeker interface {
-	Seek(ctx context.Context, name string) (r Record, err error)
 }
 
 // ReadWriter defines the interface to write and read data in sync.

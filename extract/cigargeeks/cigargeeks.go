@@ -35,6 +35,16 @@ const cookie = "SMFCookie895=%7B%220%22%3A133942%2C%221%22%3A%22e30e17daccc11bb3
 const itemsPerPage = 50
 const baseURL = "https://www.cigargeeks.com/index.php"
 
+var delaysSec = []int{5, 10, 20, 30, 60, 120}
+
+var retries = struct {
+	mu      *sync.Mutex
+	retries map[string]int
+}{
+	mu:      new(sync.Mutex),
+	retries: make(map[string]int),
+}
+
 func (c Client) Read(ctx context.Context, id string) (r storage.Record, err error) {
 	var res any
 	res, err = c.processReq(ctx, id, readDetailsPage)
@@ -42,6 +52,36 @@ func (c Client) Read(ctx context.Context, id string) (r storage.Record, err erro
 		r = res.(storage.Record)
 		r.URL = id
 	}
+
+	var retry bool
+	var madeAttempts int
+	retries.mu.Lock()
+	switch {
+	case r.Name == "" && r.Brand == "":
+		var ok bool
+		madeAttempts, ok = retries.retries[id]
+		if ok && madeAttempts == len(delaysSec) {
+			err = fmt.Errorf("could not read the record from %s after %d retires", id, len(delaysSec))
+		} else {
+			retry = true
+		}
+	default:
+		delete(retries.retries, id)
+	}
+	retries.mu.Unlock()
+
+	if err == nil && retry {
+		retries.mu.Lock()
+		retries.retries[id]++
+		retries.mu.Unlock()
+		delay := time.Duration(delaysSec[madeAttempts]) * time.Second
+		if c.Logs != nil {
+			c.Logs.Info("delay and retry", slog.String("id", id), slog.String("delay", delay.String()))
+		}
+		time.Sleep(delay)
+		return c.Read(ctx, id)
+	}
+
 	return r, err
 }
 
@@ -211,20 +251,23 @@ func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record,
 			var stop bool
 			for !stop {
 				var cigarURLs map[string]struct{}
-				cigarURLs, err = c.readCigarURLs(ctx, queryBrands.String(), p)
+				var hasNextPage bool
+				cigarURLs, err, hasNextPage = c.readCigarURLs(ctx, queryBrands.String(), p)
 				if err != nil {
 					stop = true
 					break
 				}
-				if c.Logs != nil {
-					c.Logs.Info("fetch cigars",
-						slog.Int("cntBrands", len(brands)),
-						slog.Int("cntCigarURLs", len(cigarURLs)),
-						slog.Int("page", p),
-					)
-				}
+				// if c.Logs != nil {
+				// 	c.Logs.Info("fetch cigars",
+				// 		slog.Int("cntBrands", len(brands)),
+				// 		slog.Int("cntCigarURLs", len(cigarURLs)),
+				// 		slog.Int("page", p),
+				// 		slog.Int("globalPage", int(page)),
+				// 		slog.Int("skip", skip),
+				// 	)
+				// }
 
-				if len(cigarURLs) == itemsPerPage {
+				if hasNextPage {
 					p++
 				} else {
 					stop = true
@@ -235,22 +278,25 @@ func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record,
 				for cigarURL := range cigarURLs {
 					go func() {
 						rec, er := c.Read(ctx, cigarURL)
-						if rec.Name != "" {
-							mu.Lock()
-							if er != nil {
-								err = fmt.Errorf("could not read cigar data from %s: %w", cigarURL, er)
+						mu.Lock()
+						switch er != nil {
+						case true:
+							err = errors.Join(err, er)
+						case false:
+							if !rec.IsEmpty() {
+								r = append(r, rec)
 							}
-							r = append(r, rec)
-							mu.Unlock()
-							if c.Dumper != nil {
-								if c.Logs != nil {
-									c.Logs.Info("dump fetched cigars record",
-										slog.String("name", rec.Name),
-										slog.String("brand", rec.Brand),
-									)
-								}
-								_, _ = c.Dumper.Write(ctx, rec)
-							}
+						}
+						mu.Unlock()
+
+						if er == nil && c.Dumper != nil && !rec.IsEmpty() {
+							// if c.Logs != nil {
+							// 	c.Logs.Info("dump fetched cigars record",
+							// 		slog.String("name", rec.Name),
+							// 		slog.String("brand", rec.Brand),
+							// 	)
+							// }
+							_, _ = c.Dumper.Write(ctx, []storage.Record{rec})
 						}
 						cigarPageProcessed <- struct{}{}
 					}()
@@ -262,9 +308,6 @@ func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record,
 				if err != nil {
 					break
 				}
-
-				// to prevent denial of server
-				time.Sleep(200 * time.Millisecond)
 			}
 
 			if err == nil && len(brands) == itemsPerPage {
@@ -321,7 +364,8 @@ func (c Client) processReq(ctx context.Context, url string,
 	return nil, err
 }
 
-func (c Client) readCigarURLs(ctx context.Context, brandsQuery string, p int) (cigarURLs map[string]struct{}, err error) {
+func (c Client) readCigarURLs(ctx context.Context, brandsQuery string, p int) (
+	cigarURLs map[string]struct{}, err error, nextPageExists bool) {
 	skip := (p - 1) * itemsPerPage
 	urlCigars := fmt.Sprintf("%s?action=cigars;area=srchrslt;%s;start=%d", baseURL, brandsQuery, skip)
 
@@ -345,6 +389,11 @@ func (c Client) readCigarURLs(ctx context.Context, brandsQuery string, p int) (c
 					break
 				}
 			}
+
+			for _ = range n.Find("span.main_icons.next_page") {
+				nextPageExists = true
+				break
+			}
 		}
 		return nil, err
 	})
@@ -352,5 +401,5 @@ func (c Client) readCigarURLs(ctx context.Context, brandsQuery string, p int) (c
 		err = fmt.Errorf("could not fetch cigars from %s: %w", urlCigars, err)
 		cigarURLs = nil
 	}
-	return cigarURLs, err
+	return cigarURLs, err, nextPageExists
 }

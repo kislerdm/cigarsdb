@@ -31,10 +31,10 @@ func Test(t *testing.T) {
 	var wantIDs = make([]string, 0, len(wantBulk))
 	t.Run("store two records as singles", func(t *testing.T) {
 		for _, want := range wantBulk {
-			id, err := c.Write(ctx, want)
+			id, err := c.Write(ctx, []storage.Record{want})
 			assert.NoError(t, err)
-			assert.NotEmpty(t, id)
-			wantIDs = append(wantIDs, id)
+			assert.Len(t, id, 1)
+			wantIDs = append(wantIDs, id[0])
 		}
 	})
 
@@ -47,7 +47,7 @@ func Test(t *testing.T) {
 	})
 
 	t.Run("store two records in bulk", func(t *testing.T) {
-		gotIDs, err := c.WriteBulk(ctx, wantBulk)
+		gotIDs, err := c.Write(ctx, wantBulk)
 		assert.NoError(t, err)
 		assert.Equal(t, wantIDs, gotIDs)
 	})
@@ -89,21 +89,4 @@ func Test(t *testing.T) {
 		}
 		assert.Equal(t, len(wantBulk), cnt)
 	})
-}
-
-func TestClient_Seek(t *testing.T) {
-	dir := t.TempDir()
-	c, err := NewClient(dir)
-	assert.NoError(t, err)
-
-	wantName := "foo"
-	want := storage.Record{Name: wantName, ManufactureOrigin: "bar"}
-
-	ctx := context.TODO()
-	_, err = c.Write(ctx, want)
-	assert.NoError(t, err)
-
-	got, err := c.Seek(ctx, wantName)
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
 }

@@ -524,10 +524,9 @@ func (c Client) extractRecords(ctx context.Context, candidateURLPaths []string) 
 						mu.Lock()
 						err = errors.Join(err, fmt.Errorf("failed to extract record from %s: %w", id, er))
 						mu.Unlock()
-					} else {
-						if c.Dumper != nil {
-							_, _ = c.Dumper.Write(ctx, recs[i])
-						}
+					}
+					if err == nil && c.Dumper != nil {
+						_, _ = c.Dumper.Write(ctx, recs)
 					}
 					flags <- struct{}{}
 				}()

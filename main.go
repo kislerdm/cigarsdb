@@ -40,12 +40,15 @@ func main() {
 		limit, pageMin uint
 		pageMax        uint
 		s              string
+		overwriteBulk  bool
 	)
 	flag.StringVar(&s, "i", "", "source")
 	flag.StringVar(&dumpDir, "o", "/tmp", "output directory")
 	flag.UintVar(&limit, "limit", 100, "fetch limit per page")
 	flag.UintVar(&pageMin, "page-min", 1, "fetch starting from this page number")
 	flag.UintVar(&pageMax, "page-max", 0, "fetch until this page number is reached")
+	flag.BoolVar(&overwriteBulk, "wbulk", true,
+		"over-write records in bulk for every page of extraction")
 	flag.Parse()
 
 	var logs = slog.New(slog.NewJSONHandler(os.Stdin, &slog.HandlerOptions{
@@ -74,21 +77,30 @@ func main() {
 			logs.Error("error fetching data", slog.Any("error", err), slog.Uint64("page", uint64(page)))
 			return
 		}
-		_, err = destination.WriteBulk(ctx, rec)
-		if err != nil {
-			logs.Error("error persisting the data", slog.Any("error", err),
-				slog.Uint64("page", uint64(page)))
-		}
 
-		logs.Info("end fetching", slog.Uint64("page", uint64(page)))
+		if len(rec) > 0 {
+			logs.Info("end fetching", slog.Uint64("page", uint64(page)))
+
+			page = nextPage
+			if overwriteBulk {
+				_, err = destination.Write(ctx, rec)
+				if err != nil {
+					logs.Error("error persisting the data", slog.Any("error", err),
+						slog.Uint64("page", uint64(page)))
+				}
+			}
+
+		} else {
+			delay := 5 * time.Second
+			logs.Error("cool-off", slog.Duration("period", delay))
+			time.Sleep(delay)
+		}
 
 		if pageMax > 0 && page >= pageMax {
 			break
 		}
-
-		page = nextPage
 		// delay to prevent denial of server
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 }
 
