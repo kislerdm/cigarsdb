@@ -44,6 +44,9 @@ The repo contains the application to extract and persist the information describ
 ## TODO
 
 - [] complete data extraction from cigargeeks.com
+  - pages left: 
+    - [x] 39
+    - [] re-fetch from p. 6 to p. 39
 - [] extract data from www.cigarcentury.com:
   - Get the page https://www.cigarcentury.com/en/cigars?page=473.
   - Extract all cigars URL.

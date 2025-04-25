@@ -35,7 +35,7 @@ const cookie = "SMFCookie895=%7B%220%22%3A133942%2C%221%22%3A%22e30e17daccc11bb3
 const itemsPerPage = 50
 const baseURL = "https://www.cigargeeks.com/index.php"
 
-var delaysSec = []int{5, 10, 20, 30, 60, 120}
+var delaysSec = []int{5, 10, 20, 30, 60, 120, 180, 300}
 
 var retries = struct {
 	mu      *sync.Mutex
