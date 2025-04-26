@@ -332,32 +332,33 @@ func (c Client) processReq(ctx context.Context, url string,
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		err = fmt.Errorf("could not create request: %w", err)
-	}
-	req.Header.Add("Cookie", cookie)
+	} else {
+		req.Header.Add("Cookie", cookie)
 
-	var resp *http.Response
-	resp, err = c.HTTPClient.Do(req)
+		var resp *http.Response
+		resp, err = c.HTTPClient.Do(req)
 
-	switch err == nil {
-	case true:
-		o, er := fn(ctx, resp.Body)
-		_ = resp.Body.Close()
-		return o, er
+		switch err == nil {
+		case true:
+			o, er := fn(ctx, resp.Body)
+			_ = resp.Body.Close()
+			return o, er
 
-	case false:
-		var respBytes []byte
-		var er error
-		if resp != nil {
-			respBytes, er = io.ReadAll(resp.Body)
-			switch er == nil {
-			case true:
-				err = fmt.Errorf("error reading %s, body: %s, error: %w", url, respBytes, err)
-			case false:
+		case false:
+			var respBytes []byte
+			var er error
+			if resp != nil {
+				respBytes, er = io.ReadAll(resp.Body)
+				switch er == nil {
+				case true:
+					err = fmt.Errorf("error reading %s, body: %s, error: %w", url, respBytes, err)
+				case false:
+					err = fmt.Errorf("error reading %s, error: %w", url, err)
+					err = errors.Join(err, fmt.Errorf("could node read the response: %w", er))
+				}
+			} else {
 				err = fmt.Errorf("error reading %s, error: %w", url, err)
-				err = errors.Join(err, fmt.Errorf("could node read the response: %w", er))
 			}
-		} else {
-			err = fmt.Errorf("error reading %s, error: %w", url, err)
 		}
 	}
 
@@ -380,7 +381,15 @@ func (c Client) readCigarURLs(ctx context.Context, brandsQuery string, p int) (
 						if c.DataAtom == atom.A {
 							for _, attr := range c.Attr {
 								if attr.Key == "href" {
-									cigarURL := fmt.Sprintf("%s%s", baseURL, strings.TrimSpace(attr.Val))
+									tmp := strings.TrimSpace(attr.Val)
+									var queryEls = make([]string, 0)
+									for _, el := range strings.Split(tmp, ";") {
+										if !strings.HasPrefix(el, "t=") {
+											queryEls = append(queryEls, el)
+										}
+									}
+									query := strings.Join(queryEls, ";")
+									cigarURL := fmt.Sprintf("%s%s", baseURL, query)
 									cigarURLs[cigarURL] = struct{}{}
 								}
 							}
