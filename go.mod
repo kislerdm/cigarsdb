@@ -3,7 +3,7 @@ module cigarsdb
 go 1.23.5
 
 require (
-	github.com/neo4j/neo4j-go-driver/v5 v5.28.0
+	github.com/neo4j/neo4j-go-driver/v5 v5.28.1
 	github.com/stretchr/testify v1.10.0
 	golang.org/x/net v0.35.0
 )
