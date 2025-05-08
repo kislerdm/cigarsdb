@@ -58,7 +58,9 @@ func (c Client) Read(ctx context.Context, id string) (r storage.Record, err erro
 					}
 				}
 			}
-			err = augmentByCategoryValues(&r, categories, values)
+			if err = augmentByCategoryValues(&r, categories, values); err == nil {
+				r.URL = id
+			}
 		}
 		return o, err
 	})

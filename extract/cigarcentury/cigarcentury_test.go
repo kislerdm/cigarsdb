@@ -108,6 +108,10 @@ func TestClient_ReadArturoFuenteCasaCubaDivineInspiration(t *testing.T) {
 			})
 		}
 	})
+
+	t.Run("url is set", func(t *testing.T) {
+		assert.Equal(t, wantURL, got.URL)
+	})
 }
 
 func Test_readVotes(t *testing.T) {
