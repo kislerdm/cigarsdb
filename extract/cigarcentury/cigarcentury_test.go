@@ -5,6 +5,7 @@ import (
 	"cigarsdb/extract"
 	"context"
 	_ "embed"
+	"fmt"
 	"io"
 	"testing"
 
@@ -91,6 +92,21 @@ func TestClient_ReadArturoFuenteCasaCubaDivineInspiration(t *testing.T) {
 
 	t.Run("colour", func(t *testing.T) {
 		assert.Equal(t, "Colorado Maduro", *got.Color)
+	})
+
+	t.Run("specialized rating", func(t *testing.T) {
+		assert.Len(t, got.SpecializedRatings, 8)
+		for i, v := range got.SpecializedRatings {
+			t.Run(fmt.Sprintf("element %d 'who' is not empty", i), func(t *testing.T) {
+				assert.NotEmpty(t, v.Who)
+			})
+			t.Run(fmt.Sprintf("element %d 'rating' is over zero", i), func(t *testing.T) {
+				assert.Greater(t, v.RatingOutOf100, 0.)
+			})
+			t.Run(fmt.Sprintf("element %d 'year' is not empty", i), func(t *testing.T) {
+				assert.NotEmpty(t, v.Year)
+			})
+		}
 	})
 }
 

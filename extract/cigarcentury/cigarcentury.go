@@ -162,8 +162,27 @@ func augmentByCategoryValues(r *storage.Record, categories []string, values []*h
 			v := strings.TrimSpace(values[i].Data)
 			r.Color = &v
 
-			// case "Specialized Ratings":
-			// 	r.SpecializedRatings
+		case "Specialized Ratings":
+			r.SpecializedRatings = make([]storage.SpecializedRating, 0)
+			n := htmlfilter.Node{values[i].Parent}
+			for c := range n.Find("div.calificacion_especializada") {
+				var rating storage.SpecializedRating
+				for v := range c.Find("div.calificacion_valor") {
+					rating.RatingOutOf100, _ = strconv.ParseFloat(
+						strings.TrimSuffix(v.LastChild.Data, "%"), 64,
+					)
+					break
+				}
+				for v := range c.Find("div.calificacion_nombre") {
+					rating.Who = strings.TrimSpace(v.LastChild.Data)
+					break
+				}
+				for v := range c.Find("div.calificacion_ano") {
+					rating.Year = strings.TrimSpace(v.LastChild.Data)
+					break
+				}
+				r.SpecializedRatings = append(r.SpecializedRatings, rating)
+			}
 		}
 	}
 	return err

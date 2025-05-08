@@ -3,6 +3,12 @@ package storage
 
 import "context"
 
+type SpecializedRating struct {
+	Who            string  `json:"who"`
+	Year           string  `json:"year"`
+	RatingOutOf100 float64 `json:"ratingOutOf100"`
+}
+
 // Record defines a fully denormalized data projection with a 360 overview of a cigar.
 type Record struct {
 	// Identification
@@ -85,7 +91,8 @@ type Record struct {
 	Price float64 `json:"price"`
 
 	// AdditionalNotes additional info, e.g., barrel-aged
-	AdditionalNotes *string `json:"additionalNotes,omitempty"`
+	AdditionalNotes    *string             `json:"additionalNotes,omitempty"`
+	SpecializedRatings []SpecializedRating `json:"specializedRatings,omitempty"`
 }
 
 func (r Record) IsEmpty() bool {
