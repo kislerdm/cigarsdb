@@ -29,6 +29,10 @@ func TestClient_ReadArturoFuenteCasaCubaDivineInspiration(t *testing.T) {
 
 	t.Parallel()
 
+	t.Run("name", func(t *testing.T) {
+		assert.Equal(t, "Arturo Fuente - Casa Cuba - Divine Inspiration", got.Name)
+	})
+
 	t.Run("origin", func(t *testing.T) {
 		assert.Equal(t, []string{"Dominican Republic"}, got.FillerOrigin)
 	})
@@ -128,4 +132,20 @@ func Test_readVotes(t *testing.T) {
 			assert.Equalf(t, want, readVotes(in), "readVotes(%v)", in)
 		})
 	}
+}
+
+//go:embed fixtures/cigars-p-473.html
+var AllCigars []byte
+
+func TestClient_ReadBulk(t *testing.T) {
+	c := Client{
+		HTTPClient: &extract.MockHTTP{
+			Body: io.NopCloser(bytes.NewReader(AllCigars)),
+		},
+	}
+
+	got, nextPage, err := c.ReadBulk(context.TODO(), 0, 0)
+	assert.NoError(t, err)
+	assert.Equal(t, nextPage, 0)
+	assert.Len(t, got, 5675)
 }

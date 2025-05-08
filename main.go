@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cigarsdb/extract/cigarcentury"
 	"cigarsdb/extract/cigargeeks"
 	"cigarsdb/extract/cigarworld"
 	"cigarsdb/extract/noblego"
@@ -114,6 +115,8 @@ func newSource(s string, logs *slog.Logger, writer storage.Writer) (source stora
 		source = cigarworld.Client{HTTPClient: c, Dumper: writer, Logs: logs}
 	case "cigargeeks":
 		source = cigargeeks.Client{HTTPClient: c, Dumper: writer, Logs: logs}
+	case "cigarcentury":
+		source = cigarcentury.Client{HTTPClient: c, Dumper: writer, Logs: logs}
 
 	default:
 		err = fmt.Errorf("data source is unknown")

@@ -1,3 +1,4 @@
+// Package cigarcentury defines the client to extract data from cigarcentury.com
 package cigarcentury
 
 import (
@@ -5,6 +6,8 @@ import (
 	"cigarsdb/htmlfilter"
 	"cigarsdb/storage"
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"strconv"
@@ -17,15 +20,86 @@ import (
 type Client struct {
 	HTTPClient extract.HTTPClient
 	Logs       *slog.Logger
+	Dumper     storage.Writer
+}
+
+func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record, nextPage uint, err error) {
+	// whole list of cigars can be extracted using the page value 473
+	// note that the number may grow over time
+	if page == 0 {
+		page = 1
+	}
+	url := fmt.Sprintf("https://www.cigarcentury.com/en/cigars?page=%d", page)
+
+	if c.Logs != nil {
+		c.Logs.Info("LP", slog.String("url", url))
+	}
+
+	var urls = make([]string, 0)
+	_, _ = extract.ProcessReq(ctx, c.HTTPClient, url, nil,
+		func(_ context.Context, v io.ReadCloser) (any, error) {
+			var doc *html.Node
+			if doc, err = html.Parse(v); err == nil {
+				n := htmlfilter.Node{Node: doc}
+				for el := range n.Find("div.producto-item") {
+					for vv := range el.Find("a") {
+						for _, att := range vv.Attr {
+							if att.Key == "href" {
+								urls = append(urls, att.Val)
+								break
+							}
+						}
+						break
+					}
+				}
+			}
+			return nil, nil
+		})
+
+	if c.Logs != nil {
+		c.Logs.Info("found urls", slog.Int("count", len(urls)))
+	}
+
+	for _, cigarURL := range urls {
+		if c.Logs != nil {
+			c.Logs.Info("fetching data", slog.String("url", cigarURL))
+		}
+		rec, er := c.Read(ctx, cigarURL)
+		switch er != nil {
+		case true:
+			err = errors.Join(err, er)
+		case false:
+			if !rec.IsEmpty() {
+				if c.Dumper != nil {
+					if c.Logs != nil {
+						c.Logs.Info("write record", slog.String("url", cigarURL))
+					}
+					if _, er = c.Dumper.Write(ctx, []storage.Record{rec}); er != nil {
+						err = errors.Join(err, er)
+						if c.Logs != nil {
+							c.Logs.Info("write record error", slog.Any("error", er))
+						}
+					}
+				}
+				r = append(r, rec)
+			}
+		}
+	}
+	return r, nextPage, err
 }
 
 func (c Client) Read(ctx context.Context, id string) (r storage.Record, err error) {
 	_, _ = extract.ProcessReq(ctx, c.HTTPClient, id, nil, func(_ context.Context, v io.ReadCloser) (
 		any, error) {
-		var o = storage.Record{}
 		var doc *html.Node
 		if doc, err = html.Parse(v); err == nil {
 			n := htmlfilter.Node{Node: doc}
+
+			for el := range n.Find("h1.nombre-producto") {
+				r.Name = el.LastChild.Data
+				break
+			}
+
 			var categories = make([]string, 0)
 			var values = make([]*html.Node, 0)
 			for el := range n.Find("div.col-12.dato") {
@@ -62,7 +136,7 @@ func (c Client) Read(ctx context.Context, id string) (r storage.Record, err erro
 				r.URL = id
 			}
 		}
-		return o, err
+		return storage.Record{}, err
 	})
 	return r, err
 }
