@@ -7,9 +7,9 @@ import (
 	"cigarsdb/storage"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -23,65 +23,74 @@ type Client struct {
 	Dumper     storage.Writer
 }
 
-func (c Client) ReadBulk(ctx context.Context, _, page uint) (r []storage.Record, nextPage uint, err error) {
-	// whole list of cigars can be extracted using the page value 473
-	// note that the number may grow over time
-	if page == 0 {
-		page = 1
+func (c Client) ReadBulk(ctx context.Context, _, _ uint) (r []storage.Record, nextPage uint, err error) {
+	mURLs := map[string]string{
+		// "Bahamas":            "https://www.cigarcentury.com/en/search?country=11&page=4",
+		// "Cuba":               "https://www.cigarcentury.com/en/search?country=1&page=72",
+		// "Cayman Islands":     "https://www.cigarcentury.com/en/search?country=14",
+		// "Mexico":             "https://www.cigarcentury.com/en/search?country=7&page=11",
+		// "Costa Rica":         "https://www.cigarcentury.com/en/search?country=6&page=29",
+		// "Peru":               "https://www.cigarcentury.com/en/search?country=13",
+		// "Italy":              "https://www.cigarcentury.com/en/search?country=8",
+		"Dominican Republic": "https://www.cigarcentury.com/en/search?country=2&page=173",
+		"Nicaragua":          "https://www.cigarcentury.com/en/search?country=3&page=645",
+		"Honduras":           "https://www.cigarcentury.com/en/search?country=4&page=234",
+		"USA":                "https://www.cigarcentury.com/en/search?country=5&page=33",
+		"Brazil":             "https://www.cigarcentury.com/en/search?country=9&page=3",
+		"Haiti":              "https://www.cigarcentury.com/en/search?country=12",
+		"Ireland":            "https://www.cigarcentury.com/en/search?country=10",
 	}
-	url := fmt.Sprintf("https://www.cigarcentury.com/en/cigars?page=%d", page)
 
-	if c.Logs != nil {
-		c.Logs.Info("LP", slog.String("url", url))
-	}
+	for country, baseURL := range mURLs {
+		if c.Logs != nil {
+			c.Logs.Info("LP", slog.String("url", baseURL), slog.String("country", country))
+		}
 
-	var urls = make([]string, 0)
-	_, _ = extract.ProcessReq(ctx, c.HTTPClient, url, nil,
-		func(_ context.Context, v io.ReadCloser) (any, error) {
-			var doc *html.Node
-			if doc, err = html.Parse(v); err == nil {
-				n := htmlfilter.Node{Node: doc}
-				for el := range n.Find("div.producto-item") {
-					for vv := range el.Find("a") {
-						for _, att := range vv.Attr {
-							if att.Key == "href" {
-								urls = append(urls, att.Val)
-								break
+		var urls = make([]string, 0)
+		_, _ = extract.ProcessReq(ctx, c.HTTPClient, baseURL, http.Header{
+			"Cookie": []string{"_ga=GA1.1.535634636.1745405994; lang=en; _hjSessionUser_3595081=eyJpZCI6ImNhNTExM2IzLWI2M2MtNTc4NC04M2UzLWQ4ZjI0NDc4MDc2OSIsImNyZWF0ZWQiOjE3NDU0MDU5OTM3MjQsImV4aXN0aW5nIjp0cnVlfQ==; century_cigars_web=fflvf1b3uhrvqmmlh34v6i0s84; rm_century_cigars_web=f2d00bb5a8973116555ba4658ad8973e3a8d2909aa34b5f200acad9fc1d94fe8; _hjSession_3595081=eyJpZCI6IjViMzMxOWVlLTQ3OGQtNDMxYy1hZjhiLTk0YzJhMjViYzE2MyIsImMiOjE3NDY3NDM2ODAzNDYsInMiOjAsInIiOjAsInNiIjowLCJzciI6MCwic2UiOjAsImZzIjowLCJzcCI6MX0=; _ga_N5CCE0BYW4=GS2.1.s1746743678$o13$g1$t1746744470$j0$l0$h0"},
+		},
+			func(_ context.Context, v io.ReadCloser) (any, error) {
+				var doc *html.Node
+				if doc, err = html.Parse(v); err == nil {
+					n := htmlfilter.Node{Node: doc}
+					for el := range n.Find("div.producto-item") {
+						for vv := range el.Find("a") {
+							for _, att := range vv.Attr {
+								if att.Key == "href" {
+									urls = append(urls, att.Val)
+									break
+								}
+							}
+							break
+						}
+					}
+				}
+				return nil, nil
+			})
+
+		if c.Logs != nil {
+			c.Logs.Info("found urls", slog.Int("count", len(urls)))
+		}
+
+		for _, cigarURL := range urls {
+			rec, er := c.Read(ctx, cigarURL)
+			switch er != nil {
+			case true:
+				err = errors.Join(err, er)
+			case false:
+				if !rec.IsEmpty() {
+					if c.Dumper != nil {
+						if _, er = c.Dumper.Write(ctx, []storage.Record{rec}); er != nil {
+							err = errors.Join(err, er)
+							if c.Logs != nil {
+								c.Logs.Info("write record error", slog.Any("error", er),
+									slog.String("url", cigarURL))
 							}
 						}
-						break
 					}
+					r = append(r, rec)
 				}
-			}
-			return nil, nil
-		})
-
-	if c.Logs != nil {
-		c.Logs.Info("found urls", slog.Int("count", len(urls)))
-	}
-
-	for _, cigarURL := range urls {
-		if c.Logs != nil {
-			c.Logs.Info("fetching data", slog.String("url", cigarURL))
-		}
-		rec, er := c.Read(ctx, cigarURL)
-		switch er != nil {
-		case true:
-			err = errors.Join(err, er)
-		case false:
-			if !rec.IsEmpty() {
-				if c.Dumper != nil {
-					if c.Logs != nil {
-						c.Logs.Info("write record", slog.String("url", cigarURL))
-					}
-					if _, er = c.Dumper.Write(ctx, []storage.Record{rec}); er != nil {
-						err = errors.Join(err, er)
-						if c.Logs != nil {
-							c.Logs.Info("write record error", slog.Any("error", er))
-						}
-					}
-				}
-				r = append(r, rec)
 			}
 		}
 	}
