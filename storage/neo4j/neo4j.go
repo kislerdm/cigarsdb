@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
@@ -39,17 +40,28 @@ func NewClient(ctx context.Context, cfg ConnectionConfig) (c Client, err error) 
 }
 
 func (c Client) Write(ctx context.Context, r []storage.Record) (ids []string, err error) {
-	_, err = c.dbSession.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
-		records := fromRecords(r)
-		return tx.Run(ctx, `WITH $records AS records, apoc.date.currentTimestamp() AS now
+	var records = make([]map[string]any, 0, len(r))
+	for i, rec := range r {
+		records[i], err = fromRecord(rec)
+		if err != nil {
+			err = fmt.Errorf("could not convert record %d to neo4j record: %w", i, err)
+			break
+		}
+	}
+
+	if err == nil {
+		_, err = c.dbSession.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
+
+			return tx.Run(ctx, `WITH $records AS records, apoc.date.currentTimestamp() AS now
 UNWIND records AS rec
 MERGE (n:CigarRaw{identifier:apoc.map.get(rec, "url", "", false)}) SET n += rec
 , n.createdAt = apoc.map.get(n, "createdAt", now, false)
 , n.updatedAt = now
 `, map[string]interface{}{
-			"records": records,
+				"records": records,
+			})
 		})
-	})
+	}
 
 	if err == nil {
 		ids = make([]string, len(r))
@@ -57,21 +69,59 @@ MERGE (n:CigarRaw{identifier:apoc.map.get(rec, "url", "", false)}) SET n += rec
 			ids[i] = rec.URL
 		}
 	}
+
 	return ids, err
 }
 
-func fromRecords(r []storage.Record) []map[string]any {
-	var o = make([]map[string]any, 0, len(r))
-	for _, rec := range r {
-		t := reflect.TypeOf(rec)
+func fromRecord(rec any) (map[string]any, error) {
+	var err error
+	var o = make(map[string]any)
+
+	t := reflect.TypeOf(rec)
+	if t.Kind() != reflect.Struct {
+		err = fmt.Errorf("imput must be struct")
+	}
+
+	if err == nil {
 		v := reflect.ValueOf(rec)
 		for i := 0; i < t.NumField(); i++ {
-			_ = v.Field(i)
-			panic("todo")
-		}
+			fieldType := t.Field(i)
+			key := strings.Split(fieldType.Tag.Get("json"), ",")[0]
+			fieldVal := v.Field(i)
+			switch fieldVal.Kind() {
+			case reflect.Struct:
+				if o[key], err = fromRecord(fieldVal.Interface()); err != nil {
+					break
+				}
+			case reflect.Pointer:
+				if !fieldVal.IsNil() && !fieldVal.IsZero() {
+					o[key] = fieldVal.Elem().Interface()
+				}
 
-		el := map[string]any{"identifier": rec.URL}
-		o = append(o, el)
+			case reflect.Slice, reflect.Array:
+				if fieldVal.Len() > 0 {
+					switch fieldVal.Index(0).Kind() {
+					case reflect.Struct:
+						var vv = make([]map[string]any, fieldVal.Len())
+						for j := 0; j < fieldVal.Len(); j++ {
+							el := fieldVal.Index(j)
+							vv[j], err = fromRecord(el.Interface())
+							if err != nil {
+								break
+							}
+						}
+						o[key] = vv
+
+					default:
+						o[key] = fieldVal.Interface()
+					}
+				}
+
+			default:
+				o[key] = fieldVal.Interface()
+			}
+		}
 	}
-	return o
+
+	return o, err
 }
