@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -52,16 +53,16 @@ func main() {
 		return
 	}
 
-	err = filepath.WalkDir(sourceDir, func(path string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(sourceDir, func(p string, d fs.DirEntry, err error) error {
 		if err == nil {
-			if strings.HasSuffix(path, ".json") && !d.IsDir() {
-				id := strings.TrimRight(path, ".json")
+			if strings.HasSuffix(p, ".json") && !d.IsDir() {
+				id := strings.TrimRight(path.Base(p), ".json")
 				rec, er := from.Read(ctx, id)
 				if er != nil {
-					err = fmt.Errorf("could not read the file %s: %w", path, er)
+					err = fmt.Errorf("could not read the file %s: %w", p, er)
 				} else {
 					if _, er = to.Write(ctx, []storage.Record{rec}); er != nil {
-						err = fmt.Errorf("could not write the file %s: %w", path, er)
+						err = fmt.Errorf("could not write the file %s: %w", p, er)
 					}
 				}
 			}
