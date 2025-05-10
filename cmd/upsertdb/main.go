@@ -16,13 +16,6 @@ import (
 	"strings"
 )
 
-type configNeo4j struct {
-	DbURI      string
-	DbPassword string
-	DbName     string
-	DbUser     string
-}
-
 func main() {
 	var sourceDir string
 	flag.StringVar(&sourceDir, "i", "/tmp", "directory to read the json files from")
@@ -41,7 +34,7 @@ func main() {
 	c := neo4j.ConnectionConfig{
 		DbURI:      os.Getenv("DB_URI"),
 		DbPassword: os.Getenv("DB_PASSWORD"),
-		DbName:     cmp.Or(os.Getenv("DB_PASSWORD"), "neo4j"),
+		DbName:     cmp.Or(os.Getenv("DB_NAME"), "neo4j"),
 		DbUser:     cmp.Or(os.Getenv("DB_USER"), "neo4j"),
 	}
 

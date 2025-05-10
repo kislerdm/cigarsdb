@@ -7,8 +7,9 @@ import (
 )
 
 type inL1 struct {
-	Foo string `json:"foo"`
-	Bar *int64 `json:"bar,omitempty"`
+	Foo string         `json:"foo"`
+	Bar *int64         `json:"bar,omitempty"`
+	Baz map[string]any `json:"baz,omitempty"`
 }
 
 type inL0 struct {
@@ -26,6 +27,9 @@ func Test_fromRecord(t *testing.T) {
 			{
 				Foo: "fooL01",
 				Bar: pointer(int64(1)),
+				Baz: map[string]any{
+					"foo": 1,
+				},
 			},
 			{
 				Foo: "fooL11",
@@ -42,8 +46,9 @@ func Test_fromRecord(t *testing.T) {
 		"bar": "bar",
 		"baz": []map[string]any{
 			{
-				"foo": "fooL01",
-				"bar": int64(1),
+				"foo":     "fooL01",
+				"bar":     int64(1),
+				"baz_foo": 1,
 			},
 			{"foo": "fooL11"},
 		},

@@ -40,7 +40,7 @@ func NewClient(ctx context.Context, cfg ConnectionConfig) (c Client, err error) 
 }
 
 func (c Client) Write(ctx context.Context, r []storage.Record) (ids []string, err error) {
-	var records = make([]map[string]any, 0, len(r))
+	var records = make([]map[string]any, len(r))
 	for i, rec := range r {
 		records[i], err = fromRecord(rec)
 		if err != nil {
@@ -93,6 +93,7 @@ func fromRecord(rec any) (map[string]any, error) {
 				if o[key], err = fromRecord(fieldVal.Interface()); err != nil {
 					break
 				}
+
 			case reflect.Pointer:
 				if !fieldVal.IsNil() && !fieldVal.IsZero() {
 					o[key] = fieldVal.Elem().Interface()
@@ -114,6 +115,21 @@ func fromRecord(rec any) (map[string]any, error) {
 
 					default:
 						o[key] = fieldVal.Interface()
+					}
+				}
+
+			case reflect.Map:
+				for _, k := range fieldVal.MapKeys() {
+					vv := fieldVal.MapIndex(k)
+					if vv.Kind() == reflect.Struct {
+						vvv, er := fromRecord(vv.Interface())
+						if er != nil {
+							err = er
+							break
+						}
+						o[fmt.Sprintf("%s_%s", key, k)] = vvv
+					} else {
+						o[fmt.Sprintf("%s_%s", key, k)] = vv.Interface()
 					}
 				}
 
