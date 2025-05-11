@@ -46,9 +46,9 @@ func Test_fromRecord(t *testing.T) {
 		"bar": "bar",
 		"baz": []map[string]any{
 			{
-				"foo":     "fooL01",
-				"bar":     int64(1),
-				"baz_foo": 1,
+				"foo": "fooL01",
+				"bar": int64(1),
+				"baz": `{"foo":1}`,
 			},
 			{"foo": "fooL11"},
 		},

@@ -3,6 +3,7 @@ package neo4j
 import (
 	"cigarsdb/storage"
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -96,7 +97,14 @@ func fromRecord(rec any) (map[string]any, error) {
 
 			case reflect.Pointer:
 				if !fieldVal.IsNil() && !fieldVal.IsZero() {
-					o[key] = fieldVal.Elem().Interface()
+					elVal := fieldVal.Elem().Interface()
+					if fieldVal.Elem().Kind() == reflect.Struct {
+						if o[key], err = fromRecord(elVal); err != nil {
+							break
+						}
+					} else {
+						o[key] = elVal
+					}
 				}
 
 			case reflect.Slice, reflect.Array:
@@ -119,18 +127,10 @@ func fromRecord(rec any) (map[string]any, error) {
 				}
 
 			case reflect.Map:
-				for _, k := range fieldVal.MapKeys() {
-					vv := fieldVal.MapIndex(k)
-					if vv.Kind() == reflect.Struct {
-						vvv, er := fromRecord(vv.Interface())
-						if er != nil {
-							err = er
-							break
-						}
-						o[fmt.Sprintf("%s_%s", key, k)] = vvv
-					} else {
-						o[fmt.Sprintf("%s_%s", key, k)] = vv.Interface()
-					}
+				if len(fieldVal.MapKeys()) > 0 {
+					var vv []byte
+					vv, err = json.Marshal(fieldVal.Interface())
+					o[key] = string(vv)
 				}
 
 			default:
