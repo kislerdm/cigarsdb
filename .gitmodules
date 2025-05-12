@@ -1,0 +1,4 @@
+[submodule "data"]
+	path = db
+	url = git@github.com:kislerdm/cigarsdb.git
+	branch = data
